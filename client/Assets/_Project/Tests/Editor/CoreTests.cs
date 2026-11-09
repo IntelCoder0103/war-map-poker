@@ -3,65 +3,35 @@ using WarPoker.Core;
 
 namespace WarPoker.Tests
 {
-    public class TroopBreakdownTests
+    public class TroopSquadTests
     {
         [Test]
-        public void ZeroOrNegativeGivesEmpty()
+        public void ZeroOrNegativeGivesNoFigures()
         {
-            Assert.AreEqual(0, TroopBreakdown.Break(0).Count);
-            Assert.AreEqual(0, TroopBreakdown.Break(-5).Count);
+            Assert.AreEqual(0, TroopSquad.Figures(0));
+            Assert.AreEqual(0, TroopSquad.Figures(-5));
         }
 
         [Test]
-        public void GreedyLargestFirst()
+        public void OneMoreFigurePerDigitUpToFive()
         {
-            var b = TroopBreakdown.Break(12345);
-            Assert.AreEqual(5, b.Count);
-            Assert.AreEqual(TroopUnit.Knight, b[0].Unit); Assert.AreEqual(1, b[0].Count);
-            Assert.AreEqual(TroopUnit.Cavalry, b[1].Unit); Assert.AreEqual(2, b[1].Count);
-            Assert.AreEqual(TroopUnit.Ranger, b[2].Unit); Assert.AreEqual(3, b[2].Count);
-            Assert.AreEqual(TroopUnit.Archer, b[3].Unit); Assert.AreEqual(4, b[3].Count);
-            Assert.AreEqual(TroopUnit.Spearman, b[4].Unit); Assert.AreEqual(5, b[4].Count);
+            Assert.AreEqual(1, TroopSquad.Figures(1));
+            Assert.AreEqual(1, TroopSquad.Figures(9));
+            Assert.AreEqual(2, TroopSquad.Figures(10));
+            Assert.AreEqual(2, TroopSquad.Figures(99));
+            Assert.AreEqual(3, TroopSquad.Figures(100));
+            Assert.AreEqual(4, TroopSquad.Figures(1000));
+            Assert.AreEqual(4, TroopSquad.Figures(9999));
+            Assert.AreEqual(5, TroopSquad.Figures(10000));
+            Assert.AreEqual(5, TroopSquad.Figures(123456789));
         }
 
         [Test]
-        public void SkipsZeroGroups()
+        public void MarchFiguresAreCapped()
         {
-            var b = TroopBreakdown.Break(1020);
-            Assert.AreEqual(2, b.Count);
-            Assert.AreEqual(TroopUnit.Cavalry, b[0].Unit); Assert.AreEqual(1, b[0].Count);
-            Assert.AreEqual(TroopUnit.Archer, b[1].Unit); Assert.AreEqual(2, b[1].Count);
-        }
-
-        [Test]
-        public void LargeAmountsStackKnights()
-        {
-            var b = TroopBreakdown.Break(500000);
-            Assert.AreEqual(1, b.Count);
-            Assert.AreEqual(TroopUnit.Knight, b[0].Unit);
-            Assert.AreEqual(50, b[0].Count);
-        }
-
-        [Test]
-        public void BreakdownSumsBackToAmount()
-        {
-            long[] amounts = { 1, 9, 10, 99, 101, 999, 1000, 20020, 123456789 };
-            foreach (var amount in amounts)
-            {
-                long sum = 0;
-                foreach (var g in TroopBreakdown.Break(amount)) sum += g.Count * TroopBreakdown.ValueOf(g.Unit);
-                Assert.AreEqual(amount, sum, "amount " + amount);
-            }
-        }
-
-        [Test]
-        public void MarchIconsAreCappedAndLargestFirst()
-        {
-            var icons = TroopBreakdown.MarchIcons(30020, 4);
-            Assert.AreEqual(4, icons.Count);
-            Assert.AreEqual(TroopUnit.Knight, icons[0]);
-            Assert.AreEqual(TroopUnit.Knight, icons[2]);
-            Assert.AreEqual(TroopUnit.Archer, icons[3]);
+            Assert.AreEqual(3, TroopSquad.MarchFigures(30020, 3));
+            Assert.AreEqual(2, TroopSquad.MarchFigures(20, 5));
+            Assert.AreEqual(0, TroopSquad.MarchFigures(0, 5));
         }
     }
 

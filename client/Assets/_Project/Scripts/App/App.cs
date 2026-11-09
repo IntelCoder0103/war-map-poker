@@ -144,7 +144,7 @@ namespace WarPoker.Main
             GameScreen = CreateScreen<GameScreen>("Game");
 
             // Reconnecting banner (top).
-            var banner = UIKit.Image(canvasRt, "Reconnecting", ProcSprites.RoundedRect(12, 2, 0.5f), new Color(0.35f, 0.08f, 0.06f, 0.92f));
+            var banner = UIKit.Panel(canvasRt, "Reconnecting", "bar_fill", Theme.CrimsonDark, 0.8f);
             UIKit.Place(banner.rectTransform, new Vector2(0.5f, 1f), new Vector2(0, -36), new Vector2(620, 54));
             banner.raycastTarget = false;
             var bt = UIKit.Text(banner.transform, "Text", Strings.Reconnecting, 26, Theme.ParchmentLight, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -153,7 +153,7 @@ namespace WarPoker.Main
             _reconnectBanner.SetActive(false);
 
             // Toast (bottom-ish center).
-            var toastBg = UIKit.Deco(canvasRt, "Toast", ProcSprites.RoundedRect(14, 3, 0.5f), new Color(0.2f, 0.13f, 0.07f, 0.92f));
+            var toastBg = UIKit.Panel(canvasRt, "Toast", "plank", Color.white, 0.8f, true);
             UIKit.Place(toastBg.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0, -250), new Vector2(1000, 110));
             _toastGroup = UIKit.Group(toastBg.gameObject);
             _toastGroup.blocksRaycasts = false;

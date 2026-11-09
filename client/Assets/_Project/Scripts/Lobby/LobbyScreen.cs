@@ -35,11 +35,11 @@ namespace WarPoker.Lobby
         {
             var bg = UIKit.Deco(Root, "Background", WarPoker.Game.MapArt.Background(), Color.white);
             UIKit.Stretch(bg.rectTransform);
-            var shade = UIKit.Deco(Root, "Shade", null, new Color(0.1f, 0.06f, 0.03f, 0.45f));
+            var shade = UIKit.Deco(Root, "Shade", null, new Color(0.05f, 0.03f, 0.02f, 0.12f));
             UIKit.Stretch(shade.rectTransform);
 
             // Top bar
-            var bar = UIKit.Image(Root, "TopBar", ProcSprites.RoundedRect(16, 4, 0.55f), Theme.Parchment);
+            var bar = UIKit.Panel(Root, "TopBar", "panel_wide", Color.white, 0.55f);
             var barRt = bar.rectTransform;
             barRt.anchorMin = new Vector2(0, 1);
             barRt.anchorMax = new Vector2(1, 1);
@@ -48,12 +48,13 @@ namespace WarPoker.Lobby
             barRt.offsetMax = new Vector2(-24, -20);
 
             var title = UIKit.Text(bar.transform, "Title", Strings.GameTitle, 44, Theme.Crimson, TextAnchor.MiddleLeft, FontStyle.Bold);
-            AnchorLeft(title.rectTransform, 30, 0, 460, 70);
+            AnchorLeft(title.rectTransform, 40, 0, 460, 70);
+            UIKit.Title(title, 2f);
             _username = UIKit.Text(bar.transform, "Username", "", 30, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
-            AnchorLeft(_username.rectTransform, 30, -42, 460, 40);
+            AnchorLeft(_username.rectTransform, 40, -42, 460, 40);
 
             // Balance with a little troop icon.
-            var icon = UIKit.Deco(bar.transform, "TroopIcon", TroopArt.Get(TroopUnit.Knight), Color.white);
+            var icon = UIKit.Deco(bar.transform, "TroopIcon", TroopArt.Soldier(), Color.white);
             icon.preserveAspect = true;
             AnchorCenter(icon.rectTransform, -150, 0, 64, 64);
             _balance = UIKit.Text(bar.transform, "Balance", "", 46, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -71,16 +72,16 @@ namespace WarPoker.Lobby
             AnchorRight((RectTransform)logout.transform, -30, 0, 170, 64);
 
             // Room list
-            var header = UIKit.Text(Root, "Header", Strings.ChooseBattlefield, 40, Theme.ParchmentLight, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UIKit.Place(header.rectTransform, new Vector2(0.5f, 1f), new Vector2(0, -200), new Vector2(900, 60));
-            UIKit.AddShadow(header, 2f, 0.7f);
+            var header = UIKit.Text(Root, "Header", Strings.ChooseBattlefield, 46, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Place(header.rectTransform, new Vector2(0.5f, 1f), new Vector2(0, -200), new Vector2(1000, 70));
+            UIKit.Title(header, 3f);
 
             _list = UIKit.Rect("Rooms", Root);
             UIKit.Place(_list, new Vector2(0.5f, 0.5f), new Vector2(0, -90), new Vector2(1300, 660));
 
             _status = UIKit.Text(Root, "Status", "", 30, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Place(_status.rectTransform, new Vector2(0.5f, 0f), new Vector2(0, 50), new Vector2(1400, 60));
-            UIKit.AddShadow(_status, 2f, 0.8f);
+            UIKit.AddOutline(_status, 2f);
         }
 
         static void AnchorLeft(RectTransform rt, float x, float y, float w, float h)
@@ -163,44 +164,41 @@ namespace WarPoker.Lobby
         RoomRow CreateRow(int index)
         {
             var row = new RoomRow();
-            row.Button = UIKit.Button(_list, "Room" + index, "", new Vector2(1300, 112), Theme.Parchment, Theme.Ink, 10, null);
-            UIKit.ButtonLabel(row.Button).gameObject.SetActive(false);
+            var card = UIKit.Panel(_list, "Room" + index, "panel_window", Color.white, 0.42f);
+            card.rectTransform.sizeDelta = new Vector2(1300, 112);
+            row.Button = card.gameObject.AddComponent<Button>();
+            row.Button.targetGraphic = card;
+            var colors = row.Button.colors;
+            colors.highlightedColor = new Color(1f, 0.97f, 0.88f);
+            colors.pressedColor = new Color(0.85f, 0.8f, 0.7f);
+            colors.fadeDuration = 0.08f;
+            row.Button.colors = colors;
             var t = row.Button.transform;
 
-            var crest = UIKit.Deco(t, "Crest", TroopArt.Get(LevelUnit(index)), Color.white);
-            crest.preserveAspect = true;
-            UIKit.Place(crest.rectTransform, new Vector2(0, 0.5f), new Vector2(70, 0), new Vector2(70, 70));
+            // Room badge: a bigger squad for a bigger room (1 soldier for Recruit ... 5 for King).
+            var crest = TroopStackView.Create(t, "Crest", new Vector2(150, 90), 56f);
+            UIKit.Place((RectTransform)crest.transform, new Vector2(0, 0.5f), new Vector2(105, 0), new Vector2(150, 90));
+            crest.SetFigures(index + 1);
 
             row.Name = UIKit.Text(t, "Name", "", 40, Theme.Crimson, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIKit.Place(row.Name.rectTransform, new Vector2(0, 0.5f), new Vector2(270, 0), new Vector2(280, 70));
+            UIKit.Place(row.Name.rectTransform, new Vector2(0, 0.5f), new Vector2(330, 0), new Vector2(240, 70));
             row.BuyIn = UIKit.Text(t, "BuyIn", "", 30, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIKit.Place(row.BuyIn.rectTransform, new Vector2(0, 0.5f), new Vector2(590, 0), new Vector2(300, 60));
+            UIKit.Place(row.BuyIn.rectTransform, new Vector2(0, 0.5f), new Vector2(560, 0), new Vector2(300, 60));
             row.Blinds = UIKit.Text(t, "Blinds", "", 28, Theme.InkSoft, TextAnchor.MiddleLeft);
-            UIKit.Place(row.Blinds.rectTransform, new Vector2(0, 0.5f), new Vector2(880, 0), new Vector2(280, 60));
+            UIKit.Place(row.Blinds.rectTransform, new Vector2(0, 0.5f), new Vector2(830, 0), new Vector2(260, 60));
             row.Players = UIKit.Text(t, "Players", "", 26, Theme.InkSoft, TextAnchor.MiddleLeft, FontStyle.Italic);
-            UIKit.Place(row.Players.rectTransform, new Vector2(1, 0.5f), new Vector2(-260, 0), new Vector2(160, 60));
+            UIKit.Place(row.Players.rectTransform, new Vector2(1, 0.5f), new Vector2(-250, 0), new Vector2(130, 60));
 
-            var marchBg = UIKit.Deco(t, "MarchBg", ProcSprites.RoundedRect(12, 3, 0.45f), Theme.Crimson);
-            UIKit.Place(marchBg.rectTransform, new Vector2(1, 0.5f), new Vector2(-95, 0), new Vector2(150, 70));
-            row.Action = UIKit.Text(marchBg.transform, "Label", Strings.March, 30, Theme.ParchmentLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var marchBg = UIKit.Panel(t, "MarchBg", "btn_red", Color.white, 0.55f, true);
+            UIKit.Place(marchBg.rectTransform, new Vector2(1, 0.5f), new Vector2(-105, 0), new Vector2(170, 78));
+            row.Action = UIKit.Text(marchBg.transform, "Label", Strings.March, 32, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(row.Action.rectTransform);
+            UIKit.AddOutline(row.Action, 2f);
 
             var captured = row;
             row.Button.onClick.AddListener(() => Join(captured));
             _rows.Add(row);
             return row;
-        }
-
-        static TroopUnit LevelUnit(int index)
-        {
-            switch (index)
-            {
-                case 0: return TroopUnit.Spearman;
-                case 1: return TroopUnit.Archer;
-                case 2: return TroopUnit.Ranger;
-                case 3: return TroopUnit.Cavalry;
-                default: return TroopUnit.Knight;
-            }
         }
 
         void Join(RoomRow row)
@@ -280,7 +278,7 @@ namespace WarPoker.Lobby
             {
                 var room = _rooms.Find(r => r.id == row.Level);
                 bool affordable = user == null || room == null || user.balance >= room.buyIn;
-                row.Button.image.color = affordable ? Theme.Parchment : Theme.Disabled;
+                row.Button.image.color = affordable ? Color.white : new Color(0.8f, 0.8f, 0.8f);
             }
         }
 

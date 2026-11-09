@@ -5,7 +5,7 @@
 services:
   mongo:
     image: mongo:6
-    ports: ["27017:27017"]
+    ports: ["127.0.0.1:27017:27017"]  # local only: no password is set
     volumes: [mongo-data:/data/db]
 
   server:

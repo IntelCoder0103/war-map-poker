@@ -44,3 +44,6 @@ sysinfo.txt
 
 # ParrelSync clones
 *_clone_*/
+
+# Map preview exports
+/Previews/

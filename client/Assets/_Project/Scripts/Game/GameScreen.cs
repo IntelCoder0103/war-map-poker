@@ -26,7 +26,7 @@ namespace WarPoker.Game
         const float RadiusX = 720f, RadiusY = 330f;
         static readonly Vector2 BoardCardSize = new Vector2(96, 134);
         static readonly Vector2 DeckPos = new Vector2(-345, 40);
-        static readonly Vector2 PotPos = new Vector2(-40, -100);
+        static readonly Vector2 PotPos = new Vector2(0, -60);
         static readonly Vector2 ActionBarPos = new Vector2(560, -482);
 
         RectTransform _board;
@@ -69,7 +69,7 @@ namespace WarPoker.Game
             UIKit.Center(compass.rectTransform, new Vector2(-820, -415), new Vector2(150, 150));
 
             // Battlefield: a faint ring drawn around the centre.
-            var field = UIKit.Deco(_board, "Battlefield", ProcSprites.Glow(128), new Color(0.55f, 0.35f, 0.15f, 0.25f));
+            var field = UIKit.Deco(_board, "Battlefield", ProcSprites.Glow(128), new Color(0.10f, 0.09f, 0.08f, 0.16f));
             UIKit.Center(field.rectTransform, Center + new Vector2(0, -10), new Vector2(900, 420));
 
             // Seats around an ellipse; display slot 0 (me) at bottom centre.
@@ -107,12 +107,13 @@ namespace WarPoker.Game
 
             // Pot army + number.
             _potRt = UIKit.Rect("Pot", _board);
-            UIKit.Center(_potRt, PotPos, new Vector2(260, 46));
-            _potTroops = TroopStackView.Create(_potRt, "Army", new Vector2(260, 46), 32f);
+            UIKit.Center(_potRt, PotPos, new Vector2(260, 52));
+            _potTroops = TroopStackView.Create(_potRt, "Army", new Vector2(260, 52), 48f);
             _potTroops.LabelColor = Theme.Ink;
             UIKit.Stretch((RectTransform)_potTroops.transform);
-            var potBg = UIKit.Deco(_board, "PotLabelBg", ProcSprites.RoundedRect(12, 2, 0.5f), new Color(0.2f, 0.13f, 0.07f, 0.85f));
-            UIKit.Center(potBg.rectTransform, PotPos + new Vector2(230, 0), new Vector2(190, 42));
+            var potBg = UIKit.Panel(_board, "PotLabelBg", "plank", Color.white, 0.6f, true);
+            // the pot number sits right under the pot squad
+            UIKit.Center(potBg.rectTransform, PotPos + new Vector2(0, -46), new Vector2(190, 40));
             _potText = UIKit.Text(potBg.transform, "Text", "", 24, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(_potText.rectTransform);
             _potText.horizontalOverflow = HorizontalWrapMode.Overflow;
@@ -132,7 +133,7 @@ namespace WarPoker.Game
             _readyPanel = rp.gameObject;
             _readyInfo = UIKit.Text(rp, "Info", "", 26, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Center(_readyInfo.rectTransform, new Vector2(0, 52), new Vector2(780, 40));
-            _readyButton = UIKit.Button(rp, "Ready", Strings.Ready, new Vector2(440, 96), Theme.Crimson, Theme.GoldLight, 40, OnReady);
+            _readyButton = UIKit.Button(rp, "Ready", Strings.Ready, new Vector2(440, 110), Theme.Forest, Theme.GoldLight, 46, OnReady);
             UIKit.Center((RectTransform)_readyButton.transform, new Vector2(0, -20), new Vector2(440, 96));
             _readyPanel.SetActive(false);
 
@@ -152,7 +153,13 @@ namespace WarPoker.Game
             float tx = Mathf.Abs(dir.x) > 0.001f ? hx / Mathf.Abs(dir.x) : float.MaxValue;
             float ty = Mathf.Abs(dir.y) > 0.001f ? hy / Mathf.Abs(dir.y) : float.MaxValue;
             float t = Mathf.Min(tx, ty);
-            return camp + dir * (t + 42f);
+            // Push out until the whole marker clears the camp (the local camp is drawn 12% larger):
+            // the marker's own half-size along the direction, plus a small gap.
+            float bx = SeatView.BetSize.x * 0.5f, by = SeatView.BetSize.y * 0.5f;
+            float cx = hx * 1.12f + bx, cy = hy * 1.12f + by;
+            float sx = Mathf.Abs(dir.x) > 0.001f ? cx / Mathf.Abs(dir.x) : float.MaxValue;
+            float sy = Mathf.Abs(dir.y) > 0.001f ? cy / Mathf.Abs(dir.y) : float.MaxValue;
+            return camp + dir * (Mathf.Min(sx, sy) + 8f);
         }
 
         // ---------- screen lifecycle ----------

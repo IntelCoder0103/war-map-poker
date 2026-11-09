@@ -44,18 +44,40 @@ namespace WarPoker.FX
             UIKit.Center(_flash.rectTransform, Vector2.zero, new Vector2(5000, 5000));
             _flash.gameObject.SetActive(false);
 
-            var bannerImg = UIKit.Deco(transform, "VictoryBanner", ProcSprites.RoundedRect(18, 5, 0.5f), Theme.Crimson);
-            _banner = bannerImg.rectTransform;
+            _banner = UIKit.Rect("VictoryBanner", transform);
             UIKit.Center(_banner, new Vector2(0, 40), new Vector2(980, 230));
             _bannerGroup = UIKit.Group(_banner.gameObject);
             _bannerGroup.blocksRaycasts = false;
-            var trim = UIKit.Deco(_banner, "Trim", ProcSprites.RoundedRect(14, 3, 0.6f), new Color(Theme.Gold.r, Theme.Gold.g, Theme.Gold.b, 0.0f));
-            UIKit.Stretch(trim.rectTransform, 10f);
-            _bannerTitle = UIKit.Text(_banner, "Title", Strings.Victory, 86, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UIKit.Center(_bannerTitle.rectTransform, new Vector2(0, 38), new Vector2(940, 110));
-            UIKit.AddShadow(_bannerTitle, 3f, 0.6f);
-            _bannerLine = UIKit.Text(_banner, "Line", "", 34, Theme.ParchmentLight, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UIKit.Center(_bannerLine.rectTransform, new Vector2(0, -58), new Vector2(940, 60));
+            if (UISkin.Available)
+            {
+                // Kit pieces: light rays behind, a crown on top, the title on a ribbon.
+                var rays = UIKit.Deco(_banner, "Rays", UISkin.Get("sunburst"), new Color(1f, 1f, 1f, 0.9f));
+                rays.preserveAspect = true;
+                UIKit.Center(rays.rectTransform, new Vector2(0, 150), new Vector2(900, 452));
+                var ribbon = UIKit.Panel(_banner, "Ribbon", "ribbon", Color.white, 0.8f, true);
+                UIKit.Center(ribbon.rectTransform, new Vector2(0, 30), new Vector2(1000, 170));
+                var crown = UIKit.Deco(_banner, "Crown", UISkin.Get("crown"), Color.white);
+                crown.preserveAspect = true;
+                UIKit.Center(crown.rectTransform, new Vector2(0, 160), new Vector2(200, 139));
+                _bannerTitle = UIKit.Text(_banner, "Title", Strings.Victory, 76, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UIKit.Center(_bannerTitle.rectTransform, new Vector2(0, 36), new Vector2(560, 120));
+                UIKit.Title(_bannerTitle, 3f);
+                _bannerTitle.resizeTextForBestFit = true; _bannerTitle.resizeTextMaxSize = 76; _bannerTitle.resizeTextMinSize = 36;
+                _bannerLine = UIKit.Text(_banner, "Line", "", 38, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UIKit.Center(_bannerLine.rectTransform, new Vector2(0, -90), new Vector2(1100, 60));
+                UIKit.AddOutline(_bannerLine, 3f);
+            }
+            else
+            {
+                var bannerImg = _banner.gameObject.AddComponent<Image>();
+                bannerImg.sprite = ProcSprites.RoundedRect(18, 5, 0.5f); bannerImg.type = Image.Type.Sliced;
+                bannerImg.color = Theme.Crimson; bannerImg.raycastTarget = false;
+                _bannerTitle = UIKit.Text(_banner, "Title", Strings.Victory, 86, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UIKit.Center(_bannerTitle.rectTransform, new Vector2(0, 38), new Vector2(940, 110));
+                UIKit.AddShadow(_bannerTitle, 3f, 0.6f);
+                _bannerLine = UIKit.Text(_banner, "Line", "", 34, Theme.ParchmentLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UIKit.Center(_bannerLine.rectTransform, new Vector2(0, -58), new Vector2(940, 60));
+            }
             _banner.gameObject.SetActive(false);
         }
 
@@ -149,18 +171,18 @@ namespace WarPoker.FX
         /// <summary>A few troop sprites march (hopping) from one point to another, then vanish.</summary>
         public IEnumerator MarchTroops(Vector2 from, Vector2 to, long amount, float duration, int maxIcons = 5)
         {
-            var units = TroopBreakdown.MarchIcons(amount, maxIcons);
-            if (units.Count == 0) yield break;
+            int count = TroopSquad.MarchFigures(amount, maxIcons);
+            if (count == 0) yield break;
             var steps = new List<IEnumerator>();
-            for (int i = 0; i < units.Count; i++)
+            for (int i = 0; i < count; i++)
             {
                 // little formation: spread sideways perpendicular to the march direction
                 Vector2 dir = (to - from).normalized;
                 Vector2 side = new Vector2(-dir.y, dir.x);
-                float spread = (i - (units.Count - 1) * 0.5f) * 16f;
+                float spread = (i - (count - 1) * 0.5f) * 16f;
                 Vector2 a = from + side * spread;
                 Vector2 b = to + side * spread * 0.5f;
-                steps.Add(MarchOne(TroopArt.Get(units[i]), a, b, duration, i * 0.05f));
+                steps.Add(MarchOne(TroopArt.Soldier(), a, b, duration, i * 0.05f));
             }
             yield return Tween.Parallel(Host, steps);
         }

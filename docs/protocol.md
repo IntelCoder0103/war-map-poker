@@ -18,16 +18,16 @@ This is the contract between the Unity client and the Node server. All JSON uses
 | general | General | 100000 | 1000 | 2000 |
 | king | King | 500000 | 5000 | 10000 |
 
-## Troop units (client display only)
-To draw an amount as troops, break it down greedily, largest unit first:
+## Soldiers (client display only)
+There is one soldier type. To draw an amount, show the number next to a squad of identical soldier figures, one more figure per digit, up to 5:
 
-| Unit | Value |
+| Amount | Figures drawn |
 |---|---|
-| Knight | 10000 |
-| Cavalry | 1000 |
-| Ranger | 100 |
-| Archer | 10 |
-| Spearman | 1 |
+| 1–9 | 1 |
+| 10–99 | 2 |
+| 100–999 | 3 |
+| 1,000–9,999 | 4 |
+| 10,000 or more | 5 |
 
 ## REST
 

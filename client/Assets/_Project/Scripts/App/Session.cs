@@ -7,8 +7,18 @@ namespace WarPoker.Main
     /// <summary>The logged-in user: JWT (kept in PlayerPrefs for auto-login) and the latest user object.</summary>
     public class Session
     {
-        const string TokenKey = "warpoker.token";
-        const string LastUserKey = "warpoker.lastUser";
+        // Launching with "-profile <name>" keeps a separate saved login, so two windows on one
+        // machine can be two different players (e.g. ./WarPoker.x86_64 -profile p2).
+        static readonly string TokenKey = "warpoker.token" + ProfileSuffix();
+        static readonly string LastUserKey = "warpoker.lastUser" + ProfileSuffix();
+
+        static string ProfileSuffix()
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-profile" && !string.IsNullOrEmpty(args[i + 1])) return "." + args[i + 1];
+            return "";
+        }
 
         public string Token { get; private set; }
         public UserDto User { get; private set; }

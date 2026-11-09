@@ -20,18 +20,25 @@ namespace WarPoker.Auth
             var bg = UIKit.Deco(Root, "Background", BackgroundSprite(), Color.white);
             UIKit.Stretch(bg.rectTransform);
             bg.preserveAspect = false;
-            var shade = UIKit.Deco(Root, "Shade", null, new Color(0.1f, 0.06f, 0.03f, 0.35f));
+            var shade = UIKit.Deco(Root, "Shade", null, new Color(0.05f, 0.03f, 0.02f, 0.10f));
             UIKit.Stretch(shade.rectTransform);
 
-            var panel = UIKit.Image(Root, "Panel", ProcSprites.RoundedRect(22, 5, 0.55f), Theme.Parchment);
-            UIKit.Center(panel.rectTransform, new Vector2(0, 0), new Vector2(760, 820));
+            var panel = UIKit.Panel(Root, "Panel", "panel_window", Color.white, 0.8f);
+            UIKit.Center(panel.rectTransform, new Vector2(0, -20), new Vector2(780, 820));
             UIKit.AddShadow(panel, 8f, 0.45f);
             var p = panel.transform;
 
-            var title = UIKit.Text(p, "Title", Strings.GameTitle, 64, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UIKit.Center(title.rectTransform, new Vector2(0, 330), new Vector2(700, 90));
-            var sub = UIKit.Text(p, "Subtitle", "Hold'em on the field of battle", 28, Theme.InkSoft, TextAnchor.MiddleCenter, FontStyle.Italic);
-            UIKit.Center(sub.rectTransform, new Vector2(0, 268), new Vector2(700, 40));
+            // Title on a ribbon across the top of the window.
+            var ribbon = UIKit.Panel(p, "Ribbon", "ribbon", Color.white, 1f, true);
+            UIKit.Center(ribbon.rectTransform, new Vector2(0, 400), new Vector2(860, 150));
+            var title = UIKit.Text(ribbon.transform, "Title", Strings.GameTitle, 54, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Stretch(title.rectTransform);
+            title.rectTransform.offsetMin = new Vector2(150, 10);
+            title.rectTransform.offsetMax = new Vector2(-150, -6);
+            UIKit.Title(title, 2f);
+            title.resizeTextForBestFit = true; title.resizeTextMaxSize = 54; title.resizeTextMinSize = 28;
+            var sub = UIKit.Text(p, "Subtitle", "Hold'em on the field of battle", 30, Theme.InkSoft, TextAnchor.MiddleCenter);
+            UIKit.Center(sub.rectTransform, new Vector2(0, 278), new Vector2(700, 44));
 
             _user = UIKit.Input(p, "Username", Strings.Username, new Vector2(560, 80), false);
             UIKit.Center((RectTransform)_user.transform, new Vector2(0, 170), new Vector2(560, 80));

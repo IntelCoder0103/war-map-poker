@@ -22,6 +22,8 @@ namespace WarPoker.Game
     {
         public static readonly Vector2 CampSize = new Vector2(260, 150);
         public static readonly Vector2 CardSize = new Vector2(62, 86);
+        /// <summary>Bet marker on the battlefield: a squad standing on the number plank.</summary>
+        public static readonly Vector2 BetSize = new Vector2(96, 72);
 
         public RectTransform Rect { get; private set; }
         public RectTransform BetRect { get; private set; }
@@ -77,22 +79,23 @@ namespace WarPoker.Game
             UIKit.Stretch((RectTransform)_content.transform);
             var c = _content.transform;
 
-            _body = UIKit.Deco(c, "Body", ProcSprites.RoundedRect(16, 4, 0.5f), new Color(0.86f, 0.76f, 0.56f, 0.95f));
+            _body = UIKit.Panel(c, "Body", "panel_wide", Color.white, 0.38f, true);
             UIKit.Center(_body.rectTransform, Vector2.zero, CampSize);
             UIKit.AddShadow(_body, 4f, 0.35f);
 
-            _banner = UIKit.Deco(c, "Banner", ProcSprites.RoundedRect(10, 3, 0.55f), Theme.Crimson);
+            _banner = UIKit.Panel(c, "Banner", "bar_fill", Theme.Crimson, 0.9f, true);
             _bannerRt = _banner.rectTransform;
             UIKit.Center(_bannerRt, BannerPos, new Vector2(244, 42));
             _name = UIKit.Text(_bannerRt, "Name", "", 26, Theme.ParchmentLight, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(_name.rectTransform, 4f);
             _name.horizontalOverflow = HorizontalWrapMode.Overflow;
+            UIKit.AddOutline(_name, 2f);
 
             _stack = UIKit.Text(c, "Stack", "", 28, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIKit.Center(_stack.rectTransform, new Vector2(-55, 6), new Vector2(140, 36));
+            UIKit.Center(_stack.rectTransform, new Vector2(-38, 6), new Vector2(130, 36));
 
-            _troops = TroopStackView.Create(c, "Troops", new Vector2(140, 40), 24f);
-            UIKit.Center((RectTransform)_troops.transform, new Vector2(-55, -38), new Vector2(140, 40));
+            _troops = TroopStackView.Create(c, "Troops", new Vector2(130, 44), 36f);
+            UIKit.Center((RectTransform)_troops.transform, new Vector2(-40, -36), new Vector2(130, 44));
 
             for (int i = 0; i < 2; i++)
             {
@@ -107,10 +110,11 @@ namespace WarPoker.Game
             _tag.horizontalOverflow = HorizontalWrapMode.Overflow;
             UIKit.AddShadow(_tag, 2f, 0.9f);
 
-            _readyBadge = UIKit.Deco(c, "Ready", ProcSprites.RoundedRect(8, 2, 0.5f), Theme.Positive);
+            _readyBadge = UIKit.Panel(c, "Ready", "bar_fill", Theme.Positive, 0.7f, true);
             UIKit.Center(_readyBadge.rectTransform, new Vector2(78, 86), new Vector2(104, 30));
             var rt = UIKit.Text(_readyBadge.transform, "Text", Strings.ReadyBadge, 18, Theme.ParchmentLight, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(rt.rectTransform);
+            UIKit.AddOutline(rt, 1.5f);
 
             _offline = UIKit.Text(c, "Offline", Strings.Offline, 26, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Center(_offline.rectTransform, new Vector2(0, -2), new Vector2(240, 40));
@@ -128,25 +132,25 @@ namespace WarPoker.Game
 
             // Dealer button and blind badge (top-left corner).
             _dealer = UIKit.Deco(c, "Dealer", ProcSprites.Disc(64, 0.14f), Color.white);
-            UIKit.Center(_dealer.rectTransform, new Vector2(-128, 72), new Vector2(44, 44));
+            UIKit.Center(_dealer.rectTransform, new Vector2(-136, 72), new Vector2(44, 44));
             var dt = UIKit.Text(_dealer.transform, "D", "D", 24, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(dt.rectTransform);
             _blind = UIKit.Deco(c, "Blind", ProcSprites.Disc(64, 0.14f), Theme.Gold);
-            UIKit.Center(_blind.rectTransform, new Vector2(-128, 24), new Vector2(44, 44));
+            UIKit.Center(_blind.rectTransform, new Vector2(-138, 22), new Vector2(44, 44));
             _blindText = UIKit.Text(_blind.transform, "Text", "", 18, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(_blindText.rectTransform);
 
             // Bet spot on the battlefield (sibling on the board so it can sit outside the camp).
             var bet = UIKit.Rect("Bet" + name, board);
-            UIKit.Center(bet, betPos, new Vector2(170, 34));
+            UIKit.Center(bet, betPos, BetSize);
             BetRect = bet;
             _betGroup = UIKit.Group(bet.gameObject);
             _betGroup.blocksRaycasts = false;
-            _betTroops = TroopStackView.Create(bet, "Troops", new Vector2(110, 34), 24f);
+            _betTroops = TroopStackView.Create(bet, "Troops", new Vector2(BetSize.x, 40), 38f);
             _betTroops.LabelColor = Theme.ParchmentLight;
-            UIKit.Center((RectTransform)_betTroops.transform, new Vector2(-30, 0), new Vector2(110, 34));
-            var betBg = UIKit.Deco(bet, "NumberBg", ProcSprites.RoundedRect(10, 2, 0.5f), new Color(0.2f, 0.13f, 0.07f, 0.85f));
-            UIKit.Center(betBg.rectTransform, new Vector2(60, 0), new Vector2(84, 30));
+            UIKit.Center((RectTransform)_betTroops.transform, new Vector2(0, 14), new Vector2(BetSize.x, 40));
+            var betBg = UIKit.Panel(bet, "NumberBg", "plank", Color.white, 0.5f, true);
+            UIKit.Center(betBg.rectTransform, new Vector2(0, -21), new Vector2(BetSize.x, 30));
             _betText = UIKit.Text(betBg.transform, "Number", "", 20, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(_betText.rectTransform);
             _betText.horizontalOverflow = HorizontalWrapMode.Overflow;
@@ -217,7 +221,7 @@ namespace WarPoker.Game
 
             // Offline
             _offline.gameObject.SetActive(!seat.connected);
-            _body.color = seat.connected ? new Color(0.86f, 0.76f, 0.56f, 0.95f) : new Color(0.6f, 0.55f, 0.48f, 0.9f);
+            _body.color = seat.connected ? Color.white : new Color(0.62f, 0.62f, 0.62f, 0.95f);
             if (!seat.connected) _group.alpha = 0.6f;
 
             // Markers

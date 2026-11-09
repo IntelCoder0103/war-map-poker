@@ -37,23 +37,23 @@ namespace WarPoker.Game
         void Build(RectTransform root, Vector2 barPos)
         {
             // Main row
-            var barImg = UIKit.Image(root, "Bar", ProcSprites.RoundedRect(16, 4, 0.5f), new Color(0.25f, 0.17f, 0.1f, 0.9f));
+            var barImg = UIKit.Panel(root, "Bar", "plank", Color.white, 0.9f);
             UIKit.Center(barImg.rectTransform, barPos, new Vector2(780, 104));
             _bar = barImg.gameObject;
             var b = barImg.transform;
             Vector2 size = new Vector2(180, 82);
-            _fold = UIKit.Button(b, "Fold", Strings.Fold, size, Theme.Leather, Theme.ParchmentLight, 30, () => Send("fold", 0));
+            _fold = UIKit.Button(b, "Fold", Strings.Fold, size, Theme.Crimson, Theme.ParchmentLight, 30, () => Send("fold", 0));
             UIKit.Center((RectTransform)_fold.transform, new Vector2(-288, 0), size);
             _checkCall = UIKit.Button(b, "CheckCall", Strings.Check, size, Theme.Forest, Theme.ParchmentLight, 28, OnCheckCall);
             UIKit.Center((RectTransform)_checkCall.transform, new Vector2(-96, 0), size);
             _checkCallLabel = UIKit.ButtonLabel(_checkCall);
-            _raise = UIKit.Button(b, "Raise", Strings.Raise, size, Theme.Navy, Theme.ParchmentLight, 30, ToggleRaise);
+            _raise = UIKit.Button(b, "Raise", Strings.Raise, size, Theme.Gold, Theme.ParchmentLight, 30, ToggleRaise);
             UIKit.Center((RectTransform)_raise.transform, new Vector2(96, 0), size);
-            _allIn = UIKit.Button(b, "AllIn", Strings.AllIn, size, Theme.Crimson, Theme.GoldLight, 30, () => Send("allin", 0));
+            _allIn = UIKit.Button(b, "AllIn", Strings.AllIn, size, Theme.Navy, Theme.GoldLight, 30, () => Send("allin", 0));
             UIKit.Center((RectTransform)_allIn.transform, new Vector2(288, 0), size);
 
             // Raise panel (above the bar)
-            var panel = UIKit.Image(root, "RaisePanel", ProcSprites.RoundedRect(16, 4, 0.5f), new Color(0.93f, 0.86f, 0.70f, 0.97f));
+            var panel = UIKit.Panel(root, "RaisePanel", "panel_wide", Color.white, 0.45f);
             UIKit.Center(panel.rectTransform, barPos + new Vector2(0, 128), new Vector2(780, 136));
             _raisePanel = panel.gameObject;
             var p = panel.transform;
@@ -72,7 +72,7 @@ namespace WarPoker.Game
             UIKit.Center((RectTransform)_half.transform, new Vector2(-166, -34), q);
             _pot = UIKit.Button(p, "Pot", Strings.Pot, q, Theme.ParchmentDark, Theme.Ink, 24, () => SetPotFraction(1.0));
             UIKit.Center((RectTransform)_pot.transform, new Vector2(-32, -34), q);
-            _confirm = UIKit.Button(p, "Confirm", Strings.RaiseTo, new Vector2(300, 58), Theme.Navy, Theme.ParchmentLight, 26, ConfirmRaise);
+            _confirm = UIKit.Button(p, "Confirm", Strings.RaiseTo, new Vector2(300, 58), Theme.Gold, Theme.ParchmentLight, 26, ConfirmRaise);
             UIKit.Center((RectTransform)_confirm.transform, new Vector2(210, -34), new Vector2(300, 58));
             _confirmLabel = UIKit.ButtonLabel(_confirm);
 

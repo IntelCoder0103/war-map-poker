@@ -1,17 +1,17 @@
 # War-Map Poker — Design
 
 ## What it is
-Texas Hold'em for Android. Instead of a green felt table, players sit around an old parchment war map, and instead of chips they bet soldiers. A bet is just a number of soldiers. The game draws that number as a small army automatically, the way chips make change:
+Texas Hold'em for Android. Instead of a green felt table, players sit around an old parchment war map, and instead of chips they bet soldiers. A bet is just a number of soldiers. There is one soldier type. The game draws the number next to a small squad of identical soldiers, and bigger amounts get a bigger squad:
 
-| Unit | Worth |
+| Amount | Figures drawn |
 |---|---|
-| Knight | 10,000 |
-| Cavalry | 1,000 |
-| Ranger | 100 |
-| Archer | 10 |
-| Spearman | 1 |
+| 1–9 | 1 |
+| 10–99 | 2 |
+| 100–999 | 3 |
+| 1,000–9,999 | 4 |
+| 10,000 or more | 5 |
 
-So 1,250 soldiers is drawn as 1 Cavalry, 2 Rangers and 5 Archers.
+So 1,250 soldiers is drawn as 4 soldier figures next to "1,250".
 
 ## Stack
 - **Client:** Unity 2022.3 LTS (2D), Android only (min API 24, IL2CPP, ARM64).

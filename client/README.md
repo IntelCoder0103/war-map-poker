@@ -88,8 +88,8 @@ Lookup order for card art: `Cards/Art/{code}` → `Cards/Art/default` → proced
 Card layout: white rounded body; a narrow strip on the **left** with the rank on top and the suit icon below; the large
 main area shows the art.
 
-Troop values (display only, greedy breakdown): Knight 10,000 · Cavalry 1,000 · Ranger 100 · Archer 10 · Spearman 1.
-A stack shows up to 5 sprites per unit type plus a "×N" label.
+Soldiers (display only): one soldier type, sprite `Resources/Troops/soldier` (procedural fallback). An amount is drawn
+as a squad of 1–5 identical figures, one more per digit (1–9 → 1, 10–99 → 2, … 10,000+ → 5), next to the number.
 
 ## Notes / deviations
 - Built-in render pipeline (no URP): the client is pure uGUI, so URP 2D wasn't needed.
