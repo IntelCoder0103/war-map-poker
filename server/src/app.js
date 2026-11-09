@@ -33,6 +33,7 @@ async function startServer(overrides = {}) {
   let bridge = null;
   const manager = new TableManager({
     levels: cfg.levels,
+    privateRooms: cfg.privateRooms,
     settings: {
       maxSeats: cfg.maxSeats, turnTimeMs: cfg.turnTimeMs,
       nextHandDelayMs: cfg.nextHandDelayMs,
@@ -48,7 +49,7 @@ async function startServer(overrides = {}) {
   });
   bridge = attachSockets(io, manager, log);
 
-  app.get('/rooms', (req, res) => res.json({ rooms: manager.rooms() }));
+  app.get('/rooms', (req, res) => res.json({ rooms: manager.rooms(), privateRooms: manager.privateLimits() }));
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     log('http error', err);

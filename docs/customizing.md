@@ -85,6 +85,7 @@ If you make the end-of-hand animations longer, raise `showdownDelayMs` in `serve
 | `disconnectGraceMs` | How long a disconnected player keeps their seat. |
 | `idleTimeouts` | Missed turns in a row before an idle player goes back to the lobby. |
 | `readyTimeoutMs` | Once 2 or more players are ready, the time the others get to press Ready. |
+| `privateRooms` | Limits for private rooms with custom stakes: `minBuyIn`, `maxBuyIn`, `minStackBigBlinds` (the buy-in must be at least this many big blinds), and `codeLength` (4 to 12 characters). |
 | `levels` | The rooms, in lobby order. Each needs `id`, `name`, `buyIn`, `smallBlind` and `bigBlind`, all as whole numbers. |
 
 Keys starting with `_` are comments. The server checks the file at startup and refuses to start with a clear message if something can't work, such as a small blind bigger than the big blind.

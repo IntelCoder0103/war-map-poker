@@ -12,6 +12,8 @@
   "idleTimeouts": 3,
   "readyTimeoutMs": 30000,
 
+  "privateRooms": { "minBuyIn": 100, "maxBuyIn": 1000000, "minStackBigBlinds": 10, "codeLength": 6 },
+
   "levels": [
     { "id": "recruit", "name": "Recruit", "buyIn": 1000, "smallBlind": 10, "bigBlind": 20 },
     { "id": "soldier", "name": "Soldier", "buyIn": 2000, "smallBlind": 20, "bigBlind": 40 },

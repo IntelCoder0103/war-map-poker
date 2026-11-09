@@ -43,7 +43,7 @@ namespace WarPoker.Net
 
         static readonly string[] ServerEvents =
         {
-            "lobby:rooms", "table:state", "table:event", "user:balance", "table:removed", "session:replaced"
+            "lobby:rooms", "table:state", "table:event", "user:balance", "table:removed", "session:replaced", "room:invite"
         };
 
         /// <summary>Connects with the JWT in the auth payload, WebSocket transport, auto-reconnect.</summary>

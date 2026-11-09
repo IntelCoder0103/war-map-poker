@@ -352,6 +352,15 @@ namespace WarPoker.Main
                         break;
                     }
 
+                    case "room:invite":
+                    {
+                        var inv = payload != null ? payload.ToObject<InviteMsg>() : null;
+                        if (inv == null) break;
+                        if (Current == LobbyScreen) LobbyScreen.OnInvite(inv);
+                        else if (Current == GameScreen) Toast(Strings.Format("InviteArrivedAtTable", inv.from, inv.code), 4f);
+                        break;
+                    }
+
                     case "session:replaced":
                         Logout(Strings.SessionReplaced);
                         break;

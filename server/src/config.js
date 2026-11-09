@@ -32,6 +32,9 @@ const defaults = {
   // Once 2+ players pressed Ready, how long the others have before they go back to the lobby.
   readyTimeoutMs: 30000,
 
+  // Private rooms with custom stakes: limits on what a creator may choose.
+  privateRooms: { minBuyIn: 100, maxBuyIn: 1000000, minStackBigBlinds: 10, codeLength: 6 },
+
   // One "room" per level. Each level can have several tables.
   // Blinds are 1% / 2% of the buy-in, so every room starts players with 100 big blinds.
   levels: [
@@ -99,6 +102,10 @@ function validate(cfg) {
     if (l.bigBlind > l.buyIn) problems.push(`${where}: bigBlind is bigger than buyIn`);
   }
   if (!Number.isInteger(cfg.maxSeats) || cfg.maxSeats < 2 || cfg.maxSeats > 8) problems.push('maxSeats must be 2..8 (the client shows 8 camps)');
+  const pr = cfg.privateRooms || {};
+  if (!(pr.minBuyIn > 0 && pr.maxBuyIn >= pr.minBuyIn)) problems.push('privateRooms: need 0 < minBuyIn <= maxBuyIn');
+  if (!(pr.minStackBigBlinds >= 1)) problems.push('privateRooms.minStackBigBlinds must be at least 1');
+  if (!(Number.isInteger(pr.codeLength) && pr.codeLength >= 4 && pr.codeLength <= 12)) problems.push('privateRooms.codeLength must be 4..12');
   if (problems.length) throw new Error(`Bad server config:\n  - ${problems.join('\n  - ')}`);
   return cfg;
 }

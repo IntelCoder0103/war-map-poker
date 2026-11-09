@@ -43,10 +43,11 @@ There is one soldier type. To draw an amount, show the number next to a squad of
 | `POST /auth/login` | `{ username, password }` | `200 { token, user }` | `401 BAD_CREDENTIALS` |
 | `GET /me` | — | `200 { user }` | `401 UNAUTHORIZED` |
 | `POST /me/refill` | — | `200 { user }` | `400 REFILL_NOT_AVAILABLE` |
-| `GET /rooms` | — | `200 { rooms: [Room] }` | — |
+| `GET /rooms` | — | `200 { rooms: [Room], privateRooms: PrivateLimits }` | — |
 | `GET /health` | — | `200 { ok: true }` | — |
 
 - `/me` and `/me/refill` need the header `Authorization: Bearer <token>`.
+- **PrivateLimits:** `{ minBuyIn, maxBuyIn, minStackBigBlinds }`: what a player may choose when creating a private room.
 - **Room object:** `{ id, name, buyIn, smallBlind, bigBlind, players, tables, maxSeats: 8 }`. `players` counts everyone seated across all tables at that level.
 
 ## Socket.IO
@@ -59,9 +60,12 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 
 | Event | Payload | Ack on success | Notes |
 |---|---|---|---|
-| `lobby:subscribe` | `{}` | `{ ok, rooms }` | The server then sends `lobby:rooms` whenever counts change |
+| `lobby:subscribe` | `{}` | `{ ok, rooms, privateRooms }` | The server then sends `lobby:rooms` whenever counts change |
 | `lobby:unsubscribe` | `{}` | `{ ok }` | |
 | `room:join` | `{ level }` | `{ ok, tableId }` | Errors: `UNKNOWN_LEVEL`, `INSUFFICIENT_BALANCE`, `ALREADY_SEATED`, `LEAVING_TABLE` (you left while all-in and that hand hasn't ended yet). After the ack, `table:state` follows. |
+| `room:createPrivate` | `{ buyIn, bigBlind }` | `{ ok, tableId, code }` | Opens a private room with your own stakes and seats you in it. The small blind is half the big blind (rounded down). Rules: whole numbers, big blind at least 2, `buyIn` between `minBuyIn` and `maxBuyIn`, and at least `minStackBigBlinds` big blinds. Errors: `BAD_STAKES`, `INSUFFICIENT_BALANCE`, `ALREADY_SEATED`, `LEAVING_TABLE`. After the ack, `table:state` follows. |
+| `room:joinCode` | `{ code }` | `{ ok, tableId, code }` | Joins a private room by its code (not case-sensitive) and pays its buy-in. Errors: `ROOM_NOT_FOUND`, `TABLE_FULL`, `INSUFFICIENT_BALANCE`, `ALREADY_SEATED`, `LEAVING_TABLE`. |
+| `room:invite` | `{ username }` | `{ ok, username }` | From a seat in a private room, invites an online player; they get a `room:invite` event. Errors: `NOT_SEATED`, `NOT_PRIVATE`, `USER_NOT_FOUND`, `CANNOT_INVITE_SELF`, `USER_OFFLINE`, `TOO_MANY_INVITES` (the same person again within 5 seconds). |
 | `table:ready` | `{}` | `{ ok }` | Error: `NOT_SEATED` |
 | `table:action` | `{ type, amount? }` | `{ ok }` | `type`: `fold`, `check`, `call`, `raise`, `allin`. For `raise`, `amount` is the total bet to raise *to* this street. Errors: `NOT_YOUR_TURN`, `ILLEGAL_ACTION`, `BAD_AMOUNT` |
 | `table:leave` | `{}` | `{ ok, balance }` | Your stack goes back to your balance. If you're in a hand, you fold first. If you're all-in, you are not folded: you stay in the hand, `balance` is `null`, and your stack (with any winnings) is paid when the hand ends. |
@@ -78,6 +82,13 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 | `user:balance` | `{ balance, nextRefillAt }` |
 | `table:removed` | `{ reason }`, where `reason` is `broke`, `left`, `timeout` (disconnected too long) or `idle` (missed 3 turns in a row, or didn't press Ready in time). For anything but `left`, let the current hand finish on screen, then show a dialog with a button back to the lobby. |
 | `session:replaced` | `{}` |
+| `room:invite` | `{ from, code, buyIn, smallBlind, bigBlind, players, maxSeats }`. To accept, send `room:joinCode { code }`. |
+
+### Private rooms
+- Hidden from the room list. Players reach them only with the code (6 letters and digits, without the look-alike 0, O, 1 and I) or an invite.
+- Same table rules as the public rooms (Ready, timers, idle, retreat). Nobody has host powers.
+- A room closes once its last player has left; its code stops working then.
+- In the snapshot, `privateCode` holds the code (it is `null` at public tables) and `name` is `"Private"`.
 
 ### Snapshot
 ```jsonc
@@ -85,6 +96,7 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
   "tableId": "recruit-1",
   "level": "recruit", "name": "Recruit",
   "buyIn": 1000, "smallBlind": 10, "bigBlind": 20, "maxSeats": 8,
+  "privateCode": null,          // the room code at a private table
   "seq": 42,                    // the seq of the last event that was applied
   "serverTime": 1731100000000,
   "phase": "waiting",           // waiting | preflop | flop | turn | river | showdown

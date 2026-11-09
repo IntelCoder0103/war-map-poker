@@ -24,6 +24,13 @@ namespace WarPoker.Lobby
         bool _joining;
         float _nextCountdownUpdate;
 
+        // Private rooms
+        Modal _createDlg, _codeDlg, _inviteDlg;
+        InputField _buyInInput, _bigBlindInput, _codeInput;
+        Text _smallBlindText, _privateHint;
+        PrivateLimitsDto _limits = new PrivateLimitsDto();
+        InviteMsg _invite;
+
         class RoomRow
         {
             public Button Button;
@@ -75,8 +82,14 @@ namespace WarPoker.Lobby
 
             // Room list
             var header = UIKit.Text(Root, "Header", Strings.ChooseBattlefield, 46, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UIKit.Place(header.rectTransform, new Vector2(0.5f, 1f), new Vector2(0, -200), new Vector2(1000, 70));
+            UIKit.Place(header.rectTransform, new Vector2(0.5f, 1f), new Vector2(0, -200), new Vector2(720, 70));
             UIKit.Title(header, 3f);
+
+            // Private rooms: create one with your own stakes, or join a friend's with its code.
+            var create = UIKit.Button(Root, "CreatePrivate", Strings.Get("CreatePrivate"), new Vector2(270, 70), Theme.Gold, Theme.ParchmentLight, 28, OpenCreate);
+            UIKit.Place((RectTransform)create.transform, new Vector2(0.5f, 1f), new Vector2(-515, -200), new Vector2(270, 70));
+            var byCode = UIKit.Button(Root, "JoinWithCode", Strings.Get("JoinWithCode"), new Vector2(270, 70), Theme.Forest, Theme.ParchmentLight, 28, OpenJoinCode);
+            UIKit.Place((RectTransform)byCode.transform, new Vector2(0.5f, 1f), new Vector2(515, -200), new Vector2(270, 70));
 
             _list = UIKit.Rect("Rooms", Root);
             UIKit.Place(_list, new Vector2(0.5f, 0.5f), new Vector2(0, -90), new Vector2(1300, 660));
@@ -84,6 +97,43 @@ namespace WarPoker.Lobby
             _status = UIKit.Text(Root, "Status", "", 30, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Place(_status.rectTransform, new Vector2(0.5f, 0f), new Vector2(0, 50), new Vector2(1400, 60));
             UIKit.AddOutline(_status, 2f);
+
+            BuildPrivateDialogs();
+        }
+
+        void BuildPrivateDialogs()
+        {
+            // Create: buy-in and big blind; the small blind is half the big blind.
+            _createDlg = Modal.Create(Root, "CreatePrivateDialog", new Vector2(860, 600));
+            _createDlg.Title.text = Strings.Get("CreatePrivateTitle");
+            _buyInInput = _createDlg.AddInput(Strings.Get("PrivateBuyIn"), "1000", 150, InputField.ContentType.IntegerNumber, 7);
+            _bigBlindInput = _createDlg.AddInput(Strings.Get("PrivateBigBlind"), "20", 50, InputField.ContentType.IntegerNumber, 6);
+            _buyInInput.onValueChanged.AddListener(_ => UpdateSmallBlind());
+            _bigBlindInput.onValueChanged.AddListener(_ => UpdateSmallBlind());
+            _smallBlindText = UIKit.Text(_createDlg.Panel, "SmallBlind", "", 28, Theme.InkSoft, TextAnchor.MiddleRight, FontStyle.Italic);
+            UIKit.Center(_smallBlindText.rectTransform, new Vector2(60, -18), new Vector2(620, 40));
+            _privateHint = UIKit.Text(_createDlg.Panel, "Hint", "", 24, Theme.InkSoft, TextAnchor.MiddleCenter, FontStyle.Italic);
+            UIKit.Center(_privateHint.rectTransform, new Vector2(0, -78), new Vector2(740, 70));
+            _createDlg.AddButton(Strings.Get("Cancel"), Theme.Leather, new Vector2(-180, -225), new Vector2(280, 90), () => _createDlg.Hide());
+            _createDlg.AddButton(Strings.Get("Create"), Theme.Gold, new Vector2(180, -225), new Vector2(280, 90), CreatePrivate);
+
+            // Join with a code.
+            _codeDlg = Modal.Create(Root, "JoinCodeDialog", new Vector2(760, 440));
+            _codeDlg.Title.text = Strings.Get("JoinCodeTitle");
+            _codeInput = _codeDlg.AddInput(Strings.Get("RoomCode"), "ABC234", 60, InputField.ContentType.Alphanumeric, 12);
+            _codeInput.onValidateInput = (text, index, c) => char.IsLetterOrDigit(c) ? char.ToUpperInvariant(c) : '\0';
+            _codeDlg.AddButton(Strings.Get("Cancel"), Theme.Leather, new Vector2(-170, -145), new Vector2(260, 90), () => _codeDlg.Hide());
+            _codeDlg.AddButton(Strings.Get("Join"), Theme.Forest, new Vector2(170, -145), new Vector2(260, 90), () => JoinByCode(_codeInput.text, _codeDlg));
+
+            // An invitation from another player.
+            _inviteDlg = Modal.Create(Root, "InviteDialog", new Vector2(860, 460));
+            _inviteDlg.Title.text = Strings.Get("InviteTitle");
+            _inviteDlg.PlaceMessage(new Vector2(0, 40), new Vector2(760, 170));
+            _inviteDlg.AddButton(Strings.Get("Decline"), Theme.Leather, new Vector2(-180, -150), new Vector2(280, 90), () => _inviteDlg.Hide());
+            _inviteDlg.AddButton(Strings.Get("Join"), Theme.Forest, new Vector2(180, -150), new Vector2(280, 90), () =>
+            {
+                if (_invite != null) JoinByCode(_invite.code, _inviteDlg);
+            });
         }
 
         static void AnchorLeft(RectTransform rt, float x, float y, float w, float h)
@@ -111,6 +161,7 @@ namespace WarPoker.Lobby
             // REST first so the list shows even before the socket connects.
             App.Api.Rooms(r =>
             {
+                if (r.Ok && r.Data != null && r.Data.privateRooms != null) _limits = r.Data.privateRooms;
                 if (r.Ok && r.Data != null && r.Data.rooms != null && _rooms.Count == 0) SetRooms(r.Data.rooms);
             });
             if (App.Socket.IsConnected) Subscribe();
@@ -118,6 +169,7 @@ namespace WarPoker.Lobby
 
         public override void OnHide()
         {
+            foreach (var d in new[] { _createDlg, _codeDlg, _inviteDlg }) d.Hide();
             App.Session.Changed -= Refresh;
             if (App.Socket.IsConnected) App.Socket.Request("lobby:unsubscribe", new JObject(), null);
         }
@@ -130,6 +182,8 @@ namespace WarPoker.Lobby
                 {
                     var rooms = ack["rooms"];
                     if (rooms != null) SetRooms(rooms.ToObject<List<RoomDto>>());
+                    var limits = ack["privateRooms"];
+                    if (limits != null && limits.Type == JTokenType.Object) _limits = limits.ToObject<PrivateLimitsDto>();
                 }
             });
         }
@@ -213,35 +267,132 @@ namespace WarPoker.Lobby
             App.Socket.Request("room:join", new JObject { ["level"] = row.Level }, ack =>
             {
                 _joining = false;
-                if (ack.Value<bool>("ok"))
-                {
-                    _status.text = "";
-                    // table:state follows; App switches to the game screen when it arrives.
-                    // If it arrived first we're already there. Otherwise show the board now.
-                    if (App.Current != App.GameScreen)
-                    {
-                        App.GameScreen.PrepareForJoin(room != null ? room.name : row.Level);
-                        App.Show(App.GameScreen);
-                        App.RequestTableSync();
-                    }
-                    return;
-                }
+                if (OnJoined(ack, room != null ? room.name : row.Level)) return;
                 string code = ack.Value<string>("error");
                 if (code == "INSUFFICIENT_BALANCE" && room != null && App.Session.User != null)
-                {
                     _status.text = Strings.Format("NeedSoldiers", UIKit.Num(room.buyIn), room.name, UIKit.Num(App.Session.User.balance));
-                }
-                else if (code == "ALREADY_SEATED")
+                else
+                    _status.text = Strings.ErrorText(code);
+            });
+        }
+
+        /// <summary>Common handling of a successful join (or "already seated"). False if the caller should show the error.</summary>
+        bool OnJoined(JObject ack, string tableName)
+        {
+            if (ack.Value<bool>("ok"))
+            {
+                _status.text = "";
+                // table:state follows; App switches to the game screen when it arrives.
+                // If it arrived first we're already there. Otherwise show the board now.
+                if (App.Current != App.GameScreen)
                 {
-                    // We are seated somewhere already: ask for the snapshot, which brings us to the table.
-                    _status.text = Strings.Joining;
+                    App.GameScreen.PrepareForJoin(tableName);
+                    App.Show(App.GameScreen);
                     App.RequestTableSync();
                 }
-                else
+                return true;
+            }
+            if (ack.Value<string>("error") == "ALREADY_SEATED")
+            {
+                // We are seated somewhere already: ask for the snapshot, which brings us to the table.
+                _status.text = Strings.Joining;
+                App.RequestTableSync();
+                return true;
+            }
+            return false;
+        }
+
+        // ---------- private rooms ----------
+
+        void OpenCreate()
+        {
+            if (string.IsNullOrEmpty(_buyInInput.text)) _buyInInput.text = "1000";
+            if (string.IsNullOrEmpty(_bigBlindInput.text)) _bigBlindInput.text = "20";
+            _privateHint.text = Strings.Format("PrivateHint", UIKit.Num(_limits.minBuyIn), UIKit.Num(_limits.maxBuyIn), _limits.minStackBigBlinds);
+            UpdateSmallBlind();
+            _createDlg.Show();
+        }
+
+        void UpdateSmallBlind()
+        {
+            long bb;
+            _smallBlindText.text = long.TryParse(_bigBlindInput.text, out bb) && bb > 0
+                ? Strings.Format("PrivateSmallBlind", UIKit.Num(bb / 2)) : "";
+        }
+
+        void CreatePrivate()
+        {
+            if (_joining) return;
+            long buyIn, bb;
+            if (!long.TryParse(_buyInInput.text, out buyIn) || !long.TryParse(_bigBlindInput.text, out bb))
+            {
+                _createDlg.Error.text = Strings.ErrorText("BAD_STAKES");
+                return;
+            }
+            // Same rules as the server, checked here first for a quicker answer.
+            var user = App.Session.User;
+            if (bb < 2 || buyIn < _limits.minBuyIn || buyIn > _limits.maxBuyIn || buyIn < bb * _limits.minStackBigBlinds)
+            {
+                _createDlg.Error.text = Strings.ErrorText("BAD_STAKES");
+                return;
+            }
+            if (user != null && user.balance < buyIn)
+            {
+                _createDlg.Error.text = Strings.ErrorText("INSUFFICIENT_BALANCE");
+                return;
+            }
+            _joining = true;
+            _createDlg.Error.text = Strings.Joining;
+            App.Socket.Request("room:createPrivate", new JObject { ["buyIn"] = buyIn, ["bigBlind"] = bb }, ack =>
+            {
+                _joining = false;
+                string code = ack.Value<string>("code");
+                if (OnJoined(ack, Strings.Format("PrivateName", code ?? "")))
                 {
-                    _status.text = Strings.ErrorText(code);
+                    _createDlg.Hide();
+                    return;
                 }
+                _createDlg.Error.text = Strings.ErrorText(ack.Value<string>("error"));
             });
+        }
+
+        void OpenJoinCode()
+        {
+            _codeInput.text = "";
+            _codeDlg.Show();
+        }
+
+        void JoinByCode(string code, Modal dialog)
+        {
+            if (_joining) return;
+            code = (code ?? "").Trim().ToUpperInvariant();
+            if (code.Length == 0)
+            {
+                dialog.Error.text = Strings.ErrorText("ROOM_NOT_FOUND");
+                return;
+            }
+            _joining = true;
+            dialog.Error.text = Strings.Joining;
+            App.Socket.Request("room:joinCode", new JObject { ["code"] = code }, ack =>
+            {
+                _joining = false;
+                if (OnJoined(ack, Strings.Format("PrivateName", code)))
+                {
+                    dialog.Hide();
+                    return;
+                }
+                dialog.Error.text = Strings.ErrorText(ack.Value<string>("error"));
+            });
+        }
+
+        /// <summary>room:invite while in the lobby: offer to join.</summary>
+        public void OnInvite(InviteMsg invite)
+        {
+            if (invite == null || string.IsNullOrEmpty(invite.code)) return;
+            _invite = invite;
+            _inviteDlg.Message.text = Strings.Format("InviteText", invite.from, UIKit.Num(invite.buyIn),
+                UIKit.Num(invite.smallBlind), UIKit.Num(invite.bigBlind), invite.players, invite.maxSeats);
+            _inviteDlg.Show();
         }
 
         void OnRefill()

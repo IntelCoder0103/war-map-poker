@@ -170,6 +170,7 @@ class Table {
     return {
       tableId: this.id,
       level: this.level.id, name: this.level.name,
+      privateCode: this.level.code || null, // set for private rooms: share it so friends can join
       buyIn: this.level.buyIn, smallBlind: this.level.smallBlind, bigBlind: this.level.bigBlind,
       maxSeats: this.settings.maxSeats,
       seq: this.seq,
@@ -424,7 +425,10 @@ class Table {
   }
 
   async _payOut(s, stack) {
-    const user = await this.hooks.wallet.cashOut(s.userId, stack, s.session);
+    const pending = this.hooks.wallet.cashOut(s.userId, stack, s.session);
+    // The player may already be back in the lobby: a new join waits for this to be saved.
+    if (this.hooks.trackPayout) this.hooks.trackPayout(s.userId, pending);
+    const user = await pending;
     if (user) this.hooks.notify(s.userId, 'user:balance', { balance: user.balance, nextRefillAt: user.nextRefillAt });
     return user;
   }

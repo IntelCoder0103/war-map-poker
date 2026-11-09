@@ -12,7 +12,7 @@ async function makeBot(name) {
   const { token } = (await api(srv, 'POST', '/auth/register', { username: name, password: 'secret1' })).body;
   await User.updateOne({ username: name }, { balance: START_BALANCE });
   const userId = (await User.findOne({ username: name }))._id;
-  const bot = { name, token, userId, socket: null, state: null, errors: [], log: [], handsEnded: 0, removed: [], acting: false, stop: false };
+  const bot = { name, token, userId, socket: null, state: null, errors: [], log: [], handsEnded: 0, removed: [], acting: false, stop: true }; // idle until the test starts play
   await attach(bot);
   return bot;
 }
@@ -86,6 +86,11 @@ test('bots play many hands: soldiers are conserved and hole cards stay private',
   expect((await emit(loner.socket, 'table:leave')).ok).toBe(true);
 
   const players = bots.filter((b) => b !== loner);
+  // Start playing only now, so nobody busts and re-joins while the seats are being counted.
+  for (const b of players) {
+    b.stop = false;
+    if (b.state) onState(b, b.state, 'start');
+  }
   await until(() => players.every((b) => b.handsEnded >= 5), 60000);
 
   // Timeout: a bot disappears for longer than the grace period and gets removed.

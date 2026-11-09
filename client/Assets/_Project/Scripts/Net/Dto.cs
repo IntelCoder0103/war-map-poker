@@ -39,6 +39,27 @@ namespace WarPoker.Net
     public class RoomsResponse
     {
         public List<RoomDto> rooms;
+        public PrivateLimitsDto privateRooms;
+    }
+
+    /// <summary>What a player may choose for a private room (sent with the room list).</summary>
+    public class PrivateLimitsDto
+    {
+        public long minBuyIn = 100;
+        public long maxBuyIn = 1000000;
+        public long minStackBigBlinds = 10;
+    }
+
+    /// <summary>room:invite: another player asks us to join their private room.</summary>
+    public class InviteMsg
+    {
+        public string from;
+        public string code;
+        public long buyIn;
+        public long smallBlind;
+        public long bigBlind;
+        public int players;
+        public int maxSeats = 8;
     }
 
     public class ErrorResponse
@@ -111,6 +132,7 @@ namespace WarPoker.Net
         public List<SeatDto> seats;
         public LegalDto legal;
         public bool canShowCards;   // I won by everyone folding and may show my cards (table:show)
+        public string privateCode;  // private room: the code friends join with (null for public rooms)
         public long readyDeadline;  // waiting phase: when players who aren't ready go back to the lobby (0 = no countdown)
 
         /// <summary>Seat entry or null (empty seat / out of range).</summary>

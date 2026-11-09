@@ -64,11 +64,16 @@ Standard No-Limit Hold'em:
 - **Side pots:** built for every all-in level.
 - **Split pots:** the odd soldier goes to the winner closest to the dealer's left.
 
+## Private rooms
+- From the lobby, a player creates a private room with their own buy-in and big blind (small blind = half). Limits are in `server/config.json` (`privateRooms`).
+- The table shows a 6-character room code with a Copy button, and an Invite button that sends an invitation to an online player by username. The invited player gets a Join / Decline popup in the lobby.
+- Anyone can also use "Join with code" in the lobby.
+- Private rooms play by the same rules as public ones, are not listed in the lobby, and close when the last player leaves.
+
 ## Not in this version
 - Real-money purchases or ads
 - Chat
-- Friends
-- Private tables
+- Friend lists (invites go by username)
 - Leaderboards
 - Sound
 - iOS

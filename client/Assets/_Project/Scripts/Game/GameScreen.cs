@@ -39,6 +39,12 @@ namespace WarPoker.Game
         RectTransform _potRt, _deckRt;
         ActionBar _actions;
         Button _readyButton, _showButton, _leaveButton;
+        // Private rooms: the code (with Copy) and an Invite button, top right.
+        GameObject _privateBar;
+        Text _codeText;
+        Modal _inviteDlg;
+        InputField _inviteName;
+        bool _inviting;
         bool _retreatPending;   // the toggle request is on its way
         GameObject _readyPanel;
         bool _showRequested;
@@ -166,6 +172,7 @@ namespace WarPoker.Game
             UIKit.Center((RectTransform)_showButton.transform, new Vector2(300, -360), new Vector2(250, 86));
             _showButton.gameObject.SetActive(false);
 
+            BuildPrivateBar();
             BuildRankBoard();
             BuildRemovedDialog();
 
@@ -229,6 +236,63 @@ namespace WarPoker.Game
                 _rankRows.Add(row);
             }
             return _rankRows[i];
+        }
+
+        void BuildPrivateBar()
+        {
+            var bar = UIKit.Rect("PrivateRoom", _board);
+            UIKit.Center(bar, new Vector2(735, 455), new Vector2(380, 150));
+            _privateBar = bar.gameObject;
+            var codeBg = UIKit.Panel(bar, "CodeBg", "plank", Color.white, 0.6f, true);
+            UIKit.Center(codeBg.rectTransform, new Vector2(-75, 37), new Vector2(230, 64));
+            _codeText = UIKit.Text(codeBg.transform, "Code", "", 28, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Stretch(_codeText.rectTransform);
+            _codeText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            var copy = UIKit.Button(bar, "Copy", Strings.Get("Copy"), new Vector2(140, 64), Theme.Leather, Theme.ParchmentLight, 26, () =>
+            {
+                if (_state == null || string.IsNullOrEmpty(_state.privateCode)) return;
+                GUIUtility.systemCopyBuffer = _state.privateCode;
+                App.Toast(Strings.Format("CodeCopied", _state.privateCode), 2f);
+            });
+            UIKit.Center((RectTransform)copy.transform, new Vector2(115, 37), new Vector2(140, 64));
+            var invite = UIKit.Button(bar, "Invite", Strings.Get("Invite"), new Vector2(380, 64), Theme.Gold, Theme.ParchmentLight, 28, OpenInvite);
+            UIKit.Center((RectTransform)invite.transform, new Vector2(0, -37), new Vector2(380, 64));
+            _privateBar.SetActive(false);
+
+            _inviteDlg = Modal.Create(Root, "InviteFriendDialog", new Vector2(800, 470));
+            _inviteDlg.Title.text = Strings.Get("InviteFriendTitle");
+            _inviteDlg.PlaceMessage(new Vector2(0, 110), new Vector2(700, 50));
+            _inviteDlg.Message.fontSize = 26;
+            _inviteDlg.Message.color = Theme.InkSoft;
+            _inviteDlg.Message.text = Strings.Get("InviteFriendHint");
+            _inviteName = _inviteDlg.AddInput(Strings.Username, "", 30, InputField.ContentType.Alphanumeric, 16);
+            _inviteName.onValidateInput = (text, index, c) => char.IsLetterOrDigit(c) || c == '_' ? c : '\0';
+            _inviteDlg.AddButton(Strings.Get("Cancel"), Theme.Leather, new Vector2(-170, -160), new Vector2(260, 90), () => _inviteDlg.Hide());
+            _inviteDlg.AddButton(Strings.Get("Send"), Theme.Gold, new Vector2(170, -160), new Vector2(260, 90), SendInvite);
+        }
+
+        void OpenInvite()
+        {
+            _inviteName.text = "";
+            _inviteDlg.Show();
+        }
+
+        void SendInvite()
+        {
+            string name = (_inviteName.text ?? "").Trim();
+            if (_inviting || name.Length == 0) return;
+            _inviting = true;
+            App.Socket.Request("room:invite", new JObject { ["username"] = name }, ack =>
+            {
+                _inviting = false;
+                if (ack.Value<bool>("ok"))
+                {
+                    _inviteDlg.Hide();
+                    App.Toast(Strings.Format("InviteSent", ack.Value<string>("username") ?? name), 2.5f);
+                    return;
+                }
+                _inviteDlg.Error.text = Strings.ErrorText(ack.Value<string>("error"));
+            });
         }
 
         void BuildRemovedDialog()
@@ -319,6 +383,7 @@ namespace WarPoker.Game
             _leaving = false;
             _removedReason = null;
             if (_dialog != null) _dialog.SetActive(false);
+            if (_inviteDlg != null) _inviteDlg.Hide();
         }
 
         public override void OnHide()
@@ -520,6 +585,10 @@ namespace WarPoker.Game
             string info = Strings.Format("TableInfo", s.name ?? s.level ?? "", UIKit.Num(s.smallBlind), UIKit.Num(s.bigBlind));
             if (s.handNumber > 0) info += "\n" + Strings.Format("Hand", s.handNumber);
             _info.text = info;
+
+            bool isPrivate = !string.IsNullOrEmpty(s.privateCode);
+            _privateBar.SetActive(isPrivate);
+            if (isPrivate) _codeText.text = Strings.Format("RoomCodeLabel", s.privateCode);
 
             RenderReady(s);
             RenderLeaveButton(s);
