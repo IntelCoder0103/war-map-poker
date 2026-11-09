@@ -927,10 +927,22 @@ namespace WarPoker.Game
             }
             if (won.Count == 0) yield break;
 
-            // Every player's soldiers march from their bet spot to the winner(s).
+            // Busted players' soldiers fall where they stand first...
+            var busted = new HashSet<SeatView>();
+            if (e.state != null && e.state.seats != null)
+                foreach (var seat in e.state.seats)
+                {
+                    if (seat == null || !seat.inHand || seat.stack > 0 || won.ContainsKey(seat.seat)) continue;
+                    var bv = ViewFor(seat.seat);
+                    if (bv != null && bv.DisplayedBet > 0 && TroopArt.Frames("death") != null) { bv.BetDies(); busted.Add(bv); }
+                }
+            if (busted.Count > 0) yield return Tween.Delay(0.9f);
+
+            // ...then every player's soldiers march from their bet spot to the winner(s).
             var steps = new List<IEnumerator>();
             foreach (var v in _seats)
             {
+                if (busted.Contains(v)) continue; // the fallen stay down until the hand is cleared
                 long bet = v.DisplayedBet;
                 if (bet <= 0) continue;
                 Vector2 from = _fx.ToLocal(v.BetRect);
@@ -957,6 +969,7 @@ namespace WarPoker.Game
                 if (kv.Key == topSeat) after.Add(_fx.CrownAt(camp + new Vector2(0, 150), line, 1.3f));
                 else after.Add(_fx.FloatText(camp + new Vector2(0, 110), line, Theme.GoldLight, 40));
                 after.Add(wv.Pop(wv.transform, 1.15f));
+                wv.PlaySquad("victory", TroopArt.VictoryFps); // the winner's troops cheer
             }
             yield return Tween.Parallel(this, after);
         }

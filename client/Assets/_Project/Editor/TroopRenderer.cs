@@ -10,52 +10,75 @@ using Object = UnityEngine.Object;
 namespace WarPoker.EditorTools
 {
     /// <summary>
-    /// Renders the troop sprite Resources/Troops/soldier.png from the free "Voxel Knights" pack
-    /// (The Voxel Store, itch.io: usable in any game, credit optional). Sources live in
-    /// Assets/_Project/ArtSource/Voxel/. Knight model in the idle pose holding a spear upright,
-    /// palette recolored to vermilion cloth / black-lacquer armor / gold trim, 3/4 view from
-    /// slightly above, key + fill light, 4x supersampled, dark outline and soft contact shadow.
+    /// Renders the animated troop sprites in Resources/Troops/ from the Asset Store pack
+    /// "Mini Legion Footman PBR HP Polyart" (Standard Asset Store EULA: rendered art may ship,
+    /// the pack itself is NOT in the repo, see .gitignore). Every asset is loaded by path, so this
+    /// compiles without the pack and only logs an error when it is missing.
+    ///
+    /// Output (one horizontal row of square 128 px frames, frame 0 on the left, transparent bg):
+    ///   soldier_idle.png, soldier_walk.png (in place, seamless loop), soldier_victory.png,
+    ///   soldier_death.png (last frame = body on the ground), plus soldier.png (256 px static icon:
+    ///   idle frame 0 with the same framing, so swapping icon and strips never jumps).
+    /// All strips share ONE camera, scale and ground line: the feet's ground point sits at the
+    /// same pixel in every frame of every strip (horizontally centred, so mirroring the sprite
+    /// for leftward movement does not shift it).
+    ///
+    /// Look: hand-painted HP texture with the blue cloth hue-shifted to vermilion, the dark helmet-guard
+    /// plates and the shield's inner face turned to red lacquer, steel and gold trim kept; ortho 3/4 camera
+    /// looking down 24°, warm key + cool fill, 4x supersampling, dark outline, soft contact shadow.
     /// Batch: Unity -batchmode -quit -projectPath client -executeMethod WarPoker.EditorTools.TroopRenderer.RenderAll
-    /// (optional: -troopOut &lt;dir&gt; to write elsewhere). Needs a graphics device (no -nographics).
+    /// Optional args: -troopOut &lt;dir&gt; (write elsewhere), -troopYaw &lt;deg&gt;, -troopGuard red|black|steel,
+    /// -troopDumpAlbedo &lt;png&gt; (save the recoloured texture for inspection).
+    /// Needs a graphics device (no -nographics).
     /// </summary>
     public static class TroopRenderer
     {
-        const string K = "Assets/_Project/ArtSource/Voxel/Knights/";
-        const string Character = K + "FBX/Characters/TVS_VoxelKnights_Knight.fbx";
-        const string Palette = K + "Textures/Characters/TVS_VoxelKnights_Knight_Texture.png";
-        const string Anim = K + "Animations/Humans/Human_Idle_Anim.fbx";
-        const string Spear = K + "FBX/Props/TVS_VoxelKnights_Spear.fbx";
-        const string SpearPalette = K + "Textures/Props/TVS_VoxelKnights_Spear_Texture.png";
+        const string Pack = "Assets/Mini Legion Footman PBR HP Polyart/";
+        const string Model = Pack + "Meshes/Footman_Default.fbx";               // UVs of the HP/PBR textures
+        const string Albedo = Pack + "Textures/HP/footmanBlue.png";            // hand painted, reads well small
+        const string GlossTex = Pack + "Textures/PBR/MatallicSmoothness.png";  // same UVs: R metallic, A smoothness
+        const string AnimDir = Pack + "Animations/";
         const string OutDir = "Assets/_Project/Resources/Troops";
-        const string OutName = "soldier.png";
 
-        const int Size = 256;          // output px
+        /// One strip: clip time range in seconds. Loops sample [t0, t1) so the last frame flows into
+        /// frame 0; one-shots sample [t0, t1] inclusive so the last frame is the final pose.
+        struct Strip
+        {
+            public string File, Clip; public int Frames; public float T0, T1; public bool Loop;
+            public Strip(string file, string clip, int frames, float t0, float t1, bool loop)
+            { File = file; Clip = clip; Frames = frames; T0 = t0; T1 = t1; Loop = loop; }
+        }
+        // At most 16 frames per strip: 16 x 128 = 2048 px is the sprite importer's default max texture size
+        // (a wider strip would be downscaled on import and every frame blurred).
+        static readonly Strip[] Strips =
+        {
+            new Strip("soldier_idle.png",    "Footman_Idle",    12, 0f, 1f,         true),
+            new Strip("soldier_walk.png",    "Footman_Walk",    12, 0f, 4f / 3f,    true),
+            new Strip("soldier_victory.png", "Footman_Victory", 16, 0f, 10f / 3f,   false),
+            new Strip("soldier_death.png",   "Footman_Death",   14, 0f, 1f,         false),
+        };
+        const string IconFile = "soldier.png";
+
+        const int Frame = 128;         // strip frame px
+        const int Icon = 256;          // static icon px
         const int SS = 4;              // supersampling factor
         const float CamPitch = 24f;    // degrees looking down
-        const float Yaw = 160f;        // 180 = facing the camera, lower = turned toward screen right
-        const float Pad = 0.035f;      // frame padding (fraction of the side), outline added on top
-        const float OutlinePx = 2.5f;  // outline thickness at output resolution
+        const float DefaultYaw = 125f; // model faces +Z; 180 = facing the camera, 90 = profile facing screen right
+        static float Yaw => float.TryParse(Arg("-troopYaw"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y) ? y : DefaultYaw;
+        const float Pad = 0.02f;       // frame padding (fraction of the side), outline added on top
+        const float OutlineFrac = 2.25f / 128f; // outline thickness as a fraction of the output side
         static readonly Color OutlineCol = new Color(0.10f, 0.06f, 0.04f, 1f);
         const float ShadowAlpha = 0.42f;
 
-        // Spear: hand sits 0.8 below the spear origin; fattened so it survives at icon size.
-        const float SpearGrip = -0.8f, SpearThick = 1.9f;
-
-        // ---------- palette (256x1 strips, index = u * 256) ----------
-        // Rig palette layout: 0-2 darks (eyes/hair/boots), 4-6 steel, 7 skin, 8-10 gold, 34-35 team cloth.
+        // ---------- recolour (blue cloth -> vermilion) ----------
         static Color32 C(int r, int g, int b) => new Color32((byte)r, (byte)g, (byte)b, 255);
-        static readonly Color32 Verm = C(206, 44, 30), VermDark = C(160, 28, 22);
-        static readonly Color32 Gold = C(232, 182, 42), GoldDark = C(186, 136, 24);
-        static readonly Color32 Lacq = C(48, 46, 54), LacqMid = C(34, 33, 39), LacqLight = C(78, 76, 86);
-
-        static readonly Dictionary<int, Color32> SoldierRecolor = new Dictionary<int, Color32>
-        { { 34, VermDark }, { 35, Verm }, { 4, LacqLight }, { 5, LacqMid }, { 6, Lacq }, { 8, Gold }, { 9, GoldDark } };
-        static readonly Dictionary<int, Color32> SpearRecolor = new Dictionary<int, Color32>
-        { { 34, VermDark }, { 35, Verm }, { 8, Gold } };
-
-        // smoothness per palette index (lacquer + gold get a specular glint)
-        static readonly Dictionary<int, float> Gloss = new Dictionary<int, float>
-        { { 4, .55f }, { 5, .5f }, { 6, .5f }, { 8, .6f }, { 9, .55f }, { 10, .6f } };
+        static readonly Color Verm = C(206, 44, 30);
+        static readonly Color LacquerRed = C(120, 22, 16);
+        static readonly Color LacquerMid = C(170, 36, 26);
+        /// Dark plates of the helmet guard: "red" lacquer (default, reads best at ~40 px), "black" (as painted) or "steel".
+        static string Guard => Arg("-troopGuard") ?? "red";
+        // inside face of the shield in the HP texture: centre (u, v) and radius inside the steel rim
+        static readonly Vector3 ShieldBack = new Vector3(610f / 1024f, 1f - 480f / 1024f, 84f / 1024f);
 
         // ================= entry point =================
 
@@ -64,12 +87,26 @@ namespace WarPoker.EditorTools
 
         public static void RenderAll()
         {
+            var missing = new List<string>();
+            foreach (var p in new[] { Model, Albedo, GlossTex }.Concat(Strips.Select(s => AnimDir + s.Clip + ".fbx")))
+                if (!File.Exists(p)) missing.Add(p);
+            if (missing.Count > 0)
+            {
+                Debug.LogError("[TroopRenderer] The Asset Store pack \"Mini Legion Footman PBR HP Polyart\" is not in this project " +
+                               "(it is git-ignored; import it from the Package Manager / My Assets to re-render). Nothing rendered. Missing:\n  " +
+                               string.Join("\n  ", missing));
+                return;
+            }
+
             string outDir = Arg("-troopOut") ?? OutDir;
             Directory.CreateDirectory(outDir);
             WithStage(() =>
             {
-                File.WriteAllBytes(Path.Combine(outDir, OutName), RenderSoldier());
-                Debug.Log("[TroopRenderer] wrote " + Path.Combine(outDir, OutName));
+                foreach (var (name, png) in RenderSoldier())
+                {
+                    File.WriteAllBytes(Path.Combine(outDir, name), png);
+                    Debug.Log("[TroopRenderer] wrote " + Path.Combine(outDir, name));
+                }
             });
             if (outDir.StartsWith("Assets")) AssetDatabase.Refresh();
         }
@@ -99,8 +136,8 @@ namespace WarPoker.EditorTools
                 QualitySettings.pixelLightCount = 4;
                 QualitySettings.shadowProjection = ShadowProjection.StableFit;
                 RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-                RenderSettings.ambientSkyColor = new Color(0.62f, 0.62f, 0.66f);
-                RenderSettings.ambientEquatorColor = new Color(0.50f, 0.47f, 0.44f);
+                RenderSettings.ambientSkyColor = new Color(0.72f, 0.72f, 0.76f);
+                RenderSettings.ambientEquatorColor = new Color(0.58f, 0.55f, 0.52f);
                 RenderSettings.ambientGroundColor = new Color(0.30f, 0.26f, 0.22f);
                 RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Custom;
                 RenderSettings.fog = false;
@@ -118,130 +155,217 @@ namespace WarPoker.EditorTools
 
         // ================= the soldier =================
 
-        static byte[] RenderSoldier()
+        /// One baked pose: world-space mesh + its contact-shadow ellipse on the ground.
+        class Pose { public Mesh Mesh; public Vector3[] Verts; public Vector3 ShadowC; public float ShadowX, ShadowZ; }
+
+        static List<(string, byte[])> RenderSoldier()
         {
             var temp = new List<Object>();
-            var root = new GameObject("troop_soldier");
+            var stage = new GameObject("troop_stage");
+            var outputs = new List<(string, byte[])>();
             try
             {
-                var ch = Spawn(Character, root.transform);
-                Sample(ch, Anim, 0f);
+                var pivot = new GameObject("pivot");
+                pivot.transform.SetParent(stage.transform, false);
+                pivot.transform.rotation = Quaternion.Euler(0, Yaw, 0);
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Model);
+                var ch = (GameObject)Object.Instantiate(prefab, pivot.transform, false);
+                ch.transform.localPosition = Vector3.zero; ch.transform.localRotation = Quaternion.identity;
+                var anim = ch.GetComponent<Animator>();
+                if (anim) { anim.applyRootMotion = false; anim.runtimeAnimatorController = null; }
+                var smr = ch.GetComponentInChildren<SkinnedMeshRenderer>();
+                smr.enabled = false;
 
-                // spear upright in the right hand (attached in unit space, before baking)
-                var hand = Find(ch.transform, "Hand.Right");
-                var handEnd = Find(ch.transform, "Hand.Right_end");
-                var pivot = new GameObject("spear_pivot");
-                pivot.transform.SetParent(root.transform, false);
-                pivot.transform.position = (hand.position + handEnd.position) * 0.5f;
-                pivot.transform.rotation = Quaternion.LookRotation(Vector3.up, Vector3.forward);
-                pivot.transform.localScale = new Vector3(SpearThick, SpearThick, 1f);
-                var spear = (GameObject)Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Spear));
-                var lr = spear.transform.localRotation; var ls = spear.transform.localScale;
-                spear.transform.SetParent(pivot.transform, false);
-                spear.transform.localRotation = lr; spear.transform.localScale = ls;
-                spear.transform.localPosition = new Vector3(0, 0, -SpearGrip);
-                var spearMat = MakeMaterial(SpearPalette, SpearRecolor, temp);
-                foreach (var r in spear.GetComponentsInChildren<Renderer>()) r.sharedMaterial = spearMat;
+                // ---- bake every frame of every strip (humanoid clips: SampleAnimation retargets via the Animator) ----
+                var poses = new List<List<Pose>>();
+                foreach (var s in Strips)
+                {
+                    var clip = LoadClip(AnimDir + s.Clip + ".fbx");
+                    var list = new List<Pose>();
+                    for (int i = 0; i < s.Frames; i++)
+                    {
+                        float u = s.Loop ? i / (float)s.Frames : i / (float)(s.Frames - 1);
+                        float t = Mathf.Min(s.T0 + u * (s.T1 - s.T0), clip.length);
+                        clip.SampleAnimation(ch, t);
+                        clip.SampleAnimation(ch, t);
+                        list.Add(new Pose { Mesh = Bake(smr, temp) });
+                    }
+                    poses.Add(list);
+                    Debug.Log($"[TroopRenderer] {s.File}: clip {s.Clip} ({clip.length:F3}s @ {clip.frameRate}fps), {s.Frames} frames, t {s.T0:F3}..{s.T1:F3}s {(s.Loop ? "loop [t0,t1)" : "one-shot [t0,t1]")}");
+                }
+                foreach (var p in poses.SelectMany(l => l)) p.Verts = p.Mesh.vertices;
 
-                var renderers = Bake(ch, MakeMaterial(Palette, SoldierRecolor, temp), root.transform, temp);
-                renderers.AddRange(pivot.GetComponentsInChildren<Renderer>());
+                // ground = lowest point of the idle rest frame; everything is measured from it
+                float groundY = poses[0][0].Verts.Min(v => v.y);
+                float height = poses[0][0].Verts.Max(v => v.y) - groundY;
 
-                root.transform.rotation = Quaternion.Euler(0, Yaw, 0);
-                return Shoot(root, renderers, temp);
+                // contact shadow: footprint of the low part of the body (feet when standing, the whole body when lying)
+                foreach (var p in poses.SelectMany(l => l)) Footprint(p, groundY, height);
+                for (int k = 0; k < Strips.Length; k++)
+                    if (Strips[k].Loop || Strips[k].Clip.EndsWith("Victory"))
+                    {   // steady shadow for loops / the cheer: average footprint
+                        var l = poses[k];
+                        var c = new Vector3(l.Average(p => p.ShadowC.x), groundY + 0.005f, l.Average(p => p.ShadowC.z));
+                        float sx = l.Average(p => p.ShadowX), sz = l.Average(p => p.ShadowZ);
+                        foreach (var p in l) { p.ShadowC = c; p.ShadowX = sx; p.ShadowZ = sz; }
+                    }
+
+                // ---- shared framing for all strips ----
+                var camRot = Quaternion.Euler(CamPitch, 0, 0);
+                var right = camRot * Vector3.right; var up = camRot * Vector3.up;
+                var foot = new Vector3(0, groundY, 0);
+                float hw = 0, y0 = float.MaxValue, y1 = float.MinValue;
+                foreach (var p in poses.SelectMany(l => l))
+                    foreach (var v in p.Verts.Concat(ShadowPts(p)))
+                    {
+                        float x = Vector3.Dot(v - foot, right), y = Vector3.Dot(v - foot, up);
+                        hw = Mathf.Max(hw, Mathf.Abs(x)); y0 = Mathf.Min(y0, y); y1 = Mathf.Max(y1, y);
+                    }
+                float margin = Pad + (OutlineFrac * Frame + 1f) / Frame;
+                float half = Mathf.Max(hw, (y1 - y0) / 2f);
+                float ortho = half / (1f - 2f * margin);
+                var center = foot + up * ((y0 + y1) / 2f);
+                float footPxY = Frame / 2f - (y0 + y1) / 2f / ortho * (Frame / 2f); // from the bottom
+                Debug.Log($"[TroopRenderer] shared framing: ortho {ortho:F3} ({Frame / (2 * ortho):F1} px per unit at {Frame} px); " +
+                          $"ground point under the figure at x={Frame / 2f:F1}px, y={Frame - footPxY:F1}px from the top");
+
+                var rig = new Rig(stage.transform, MakeMaterial(temp), temp);
+                for (int k = 0; k < Strips.Length; k++)
+                {
+                    var l = poses[k];
+                    var strip = new Texture2D(Frame * l.Count, Frame, TextureFormat.RGBA32, false); temp.Add(strip);
+                    for (int i = 0; i < l.Count; i++)
+                        strip.SetPixels32(i * Frame, 0, Frame, Frame, rig.Shoot(l[i], center, ortho, Frame));
+                    strip.Apply();
+                    outputs.Add((Strips[k].File, strip.EncodeToPNG()));
+                }
+
+                // ---- static icon: idle frame 0 with the SAME framing, at 2x resolution (swapping icon <-> strips never jumps) ----
+                {
+                    var tex = new Texture2D(Icon, Icon, TextureFormat.RGBA32, false); temp.Add(tex);
+                    tex.SetPixels32(rig.Shoot(poses[0][0], center, ortho, Icon)); tex.Apply();
+                    outputs.Add((IconFile, tex.EncodeToPNG()));
+                }
+                return outputs;
             }
             finally
             {
-                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(stage);
                 foreach (var o in temp) if (o) Object.DestroyImmediate(o);
             }
         }
 
-        static GameObject Spawn(string fbx, Transform parent)
+        static AnimationClip LoadClip(string fbx) =>
+            AssetDatabase.LoadAllAssetsAtPath(fbx).OfType<AnimationClip>().First(c => !c.name.StartsWith("__preview"));
+
+        static void Footprint(Pose p, float groundY, float height)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(fbx);
-            if (!prefab) throw new Exception("missing model " + fbx);
-            var go = (GameObject)Object.Instantiate(prefab, parent, false);
-            go.transform.localPosition = Vector3.zero; go.transform.localRotation = Quaternion.identity;
-            return go;
+            var low = p.Verts.Where(v => v.y < groundY + height * 0.3f).ToList();
+            if (low.Count < 8) low = p.Verts.ToList();
+            float x0 = low.Min(v => v.x), x1 = low.Max(v => v.x), z0 = low.Min(v => v.z), z1 = low.Max(v => v.z);
+            p.ShadowC = new Vector3((x0 + x1) / 2, groundY + 0.005f, (z0 + z1) / 2);
+            p.ShadowX = Mathf.Max(height * 0.75f, (x1 - x0) * 1.3f);
+            p.ShadowZ = Mathf.Max(height * 0.55f, (z1 - z0) * 1.3f);
         }
 
-        static void Sample(GameObject go, string animFbx, float t01)
-        {
-            if (animFbx == null) return;
-            var clip = AssetDatabase.LoadAllAssetsAtPath(animFbx).OfType<AnimationClip>().First(c => !c.name.StartsWith("__preview"));
-            clip.SampleAnimation(go, Mathf.Clamp01(t01) * clip.length);
+        static IEnumerable<Vector3> ShadowPts(Pose p)
+        {   // visible extent of the blob (its alpha fades out well before the quad edge)
+            yield return p.ShadowC + new Vector3(p.ShadowX * .38f, 0, 0); yield return p.ShadowC - new Vector3(p.ShadowX * .38f, 0, 0);
+            yield return p.ShadowC + new Vector3(0, 0, p.ShadowZ * .38f); yield return p.ShadowC - new Vector3(0, 0, p.ShadowZ * .38f);
         }
 
-        static Transform Find(Transform t, string name)
+        /// CPU-skins the current pose into a world-space static mesh (reliable offscreen, exact bounds).
+        static Mesh Bake(SkinnedMeshRenderer smr, List<Object> temp)
         {
-            if (t.name == name) return t;
-            foreach (Transform c in t) { var f = Find(c, name); if (f) return f; }
-            return null;
-        }
-
-        /// Replaces skinned renderers with static meshes skinned on the CPU into world space
-        /// (reliable offscreen, exact bounds, no BakeMesh scale quirks with the 100x armature).
-        static List<Renderer> Bake(GameObject go, Material mat, Transform parent, List<Object> temp)
-        {
-            var list = new List<Renderer>();
-            foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>())
+            var src = smr.sharedMesh;
+            var bones = smr.bones; var bp = src.bindposes; var bw = src.boneWeights;
+            var sv = src.vertices; var sn = src.normals;
+            var wv = new Vector3[sv.Length]; var wn = new Vector3[sv.Length];
+            var mats = new Matrix4x4[bones.Length];
+            for (int i = 0; i < bones.Length; i++) mats[i] = bones[i].localToWorldMatrix * bp[i];
+            for (int i = 0; i < sv.Length; i++)
             {
-                var src = smr.sharedMesh;
-                var bones = smr.bones; var bp = src.bindposes; var bw = src.boneWeights;
-                var sv = src.vertices; var sn = src.normals;
-                var wv = new Vector3[sv.Length]; var wn = new Vector3[sv.Length];
-                var toParent = parent.worldToLocalMatrix;
-                if (bones == null || bones.Length == 0 || bw.Length != sv.Length)
-                {
-                    var m = toParent * smr.transform.localToWorldMatrix;
-                    for (int i = 0; i < sv.Length; i++) { wv[i] = m.MultiplyPoint3x4(sv[i]); wn[i] = m.MultiplyVector(sn[i]).normalized; }
-                }
-                else
-                {
-                    var mats = new Matrix4x4[bones.Length];
-                    for (int i = 0; i < bones.Length; i++) mats[i] = toParent * bones[i].localToWorldMatrix * bp[i];
-                    for (int i = 0; i < sv.Length; i++)
-                    {
-                        var w = bw[i]; Vector3 p = Vector3.zero, nn = Vector3.zero;
-                        if (w.weight0 > 0) { p += w.weight0 * mats[w.boneIndex0].MultiplyPoint3x4(sv[i]); nn += w.weight0 * mats[w.boneIndex0].MultiplyVector(sn[i]); }
-                        if (w.weight1 > 0) { p += w.weight1 * mats[w.boneIndex1].MultiplyPoint3x4(sv[i]); nn += w.weight1 * mats[w.boneIndex1].MultiplyVector(sn[i]); }
-                        if (w.weight2 > 0) { p += w.weight2 * mats[w.boneIndex2].MultiplyPoint3x4(sv[i]); nn += w.weight2 * mats[w.boneIndex2].MultiplyVector(sn[i]); }
-                        if (w.weight3 > 0) { p += w.weight3 * mats[w.boneIndex3].MultiplyPoint3x4(sv[i]); nn += w.weight3 * mats[w.boneIndex3].MultiplyVector(sn[i]); }
-                        float ws = w.weight0 + w.weight1 + w.weight2 + w.weight3;
-                        wv[i] = ws > 0 ? p / ws : p; wn[i] = nn.normalized;
-                    }
-                }
-                var mesh = new Mesh { indexFormat = src.indexFormat }; temp.Add(mesh);
-                mesh.vertices = wv; mesh.normals = wn; mesh.uv = src.uv;
-                mesh.subMeshCount = src.subMeshCount;
-                for (int s = 0; s < src.subMeshCount; s++) mesh.SetTriangles(src.GetTriangles(s), s);
-                mesh.RecalculateBounds();
-                var b = new GameObject(smr.name + "_baked");
-                b.transform.SetParent(parent, false);
-                b.AddComponent<MeshFilter>().sharedMesh = mesh;
-                var mr = b.AddComponent<MeshRenderer>(); mr.sharedMaterial = mat;
-                list.Add(mr);
-                smr.enabled = false;
+                var w = bw[i]; Vector3 p = Vector3.zero, nn = Vector3.zero;
+                if (w.weight0 > 0) { p += w.weight0 * mats[w.boneIndex0].MultiplyPoint3x4(sv[i]); nn += w.weight0 * mats[w.boneIndex0].MultiplyVector(sn[i]); }
+                if (w.weight1 > 0) { p += w.weight1 * mats[w.boneIndex1].MultiplyPoint3x4(sv[i]); nn += w.weight1 * mats[w.boneIndex1].MultiplyVector(sn[i]); }
+                if (w.weight2 > 0) { p += w.weight2 * mats[w.boneIndex2].MultiplyPoint3x4(sv[i]); nn += w.weight2 * mats[w.boneIndex2].MultiplyVector(sn[i]); }
+                if (w.weight3 > 0) { p += w.weight3 * mats[w.boneIndex3].MultiplyPoint3x4(sv[i]); nn += w.weight3 * mats[w.boneIndex3].MultiplyVector(sn[i]); }
+                float ws = w.weight0 + w.weight1 + w.weight2 + w.weight3;
+                wv[i] = ws > 0 ? p / ws : p; wn[i] = nn.normalized;
             }
-            return list;
+            var mesh = new Mesh { indexFormat = src.indexFormat }; temp.Add(mesh);
+            mesh.vertices = wv; mesh.normals = wn; mesh.uv = src.uv;
+            mesh.subMeshCount = src.subMeshCount;
+            for (int s = 0; s < src.subMeshCount; s++) mesh.SetTriangles(src.GetTriangles(s), s);
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
-        static Material MakeMaterial(string palettePath, Dictionary<int, Color32> recolor, List<Object> temp)
+        static Texture2D ReadPng(string path, List<Object> temp, bool linear = false)
         {
-            var src = new Texture2D(2, 2);
-            src.LoadImage(File.ReadAllBytes(palettePath)); temp.Add(src);
-            var pal = new Texture2D(256, 1, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
-            var gloss = new Texture2D(256, 1, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
-            temp.Add(pal); temp.Add(gloss);
-            for (int i = 0; i < 256; i++)
+            var t = new Texture2D(2, 2, TextureFormat.RGBA32, true, linear); temp.Add(t);
+            t.LoadImage(File.ReadAllBytes(path));
+            return t;
+        }
+
+        /// HP albedo with blue cloth hue-shifted to vermilion; PBR smoothness for small glints on metal / gold.
+        static Material MakeMaterial(List<Object> temp)
+        {
+            var alb = ReadPng(Albedo, temp);
+            var px = alb.GetPixels32();
+            Color.RGBToHSV(Verm, out float vh, out float vs, out float vv);
+            for (int i = 0; i < px.Length; i++)
             {
-                Color32 c = src.GetPixel(i * src.width / 256, 0);
-                if (recolor != null && recolor.TryGetValue(i, out var rc)) c = rc;
-                c.a = 255;
-                pal.SetPixel(i, 0, c);
-                gloss.SetPixel(i, 0, new Color(0, 0, 0, Gloss.TryGetValue(i, out var g) ? g : 0.12f));
+                Color c = px[i];
+                Color.RGBToHSV(c, out float h, out float s, out float v);
+                float hd = h * 360f;
+                // blue band ~190..265 deg, soft edges; needs some saturation (greys/steel stay)
+                float wHue = Mathf.Clamp01((hd - 185f) / 15f) * Mathf.Clamp01((275f - hd) / 15f);
+                float wSat = Mathf.Clamp01((s - 0.18f) / 0.17f);
+                float w = wHue * wSat;
+                // inside face of the round shield (dark steel disc) -> deep red lacquer, steel rim kept
+                int x = i % alb.width, y = i / alb.width;
+                float du = (x + .5f) / alb.width - ShieldBack.x, dv = (y + .5f) / alb.height - ShieldBack.y;
+                float wShield = 1f - Mathf.SmoothStep(0f, 1f, (Mathf.Sqrt(du * du + dv * dv) - ShieldBack.z) / 0.01f);
+                if (wShield > 0)
+                {
+                    float lum = 0.3f * c.r + 0.59f * c.g + 0.11f * c.b;
+                    var lac = Color.Lerp(LacquerRed, Verm, Mathf.Clamp01((lum - 0.15f) / 0.25f)) * Mathf.Lerp(0.75f, 1.15f, Mathf.Clamp01(lum / 0.4f));
+                    var o2 = Color.Lerp(c, lac, wShield); o2.a = 1;
+                    px[i] = o2;
+                    continue;
+                }
+                // dark plates of the helmet's face / neck guard (left column of the texture, not the steel visor)
+                float gu = (x + .5f) / alb.width, gv = 1f - (y + .5f) / alb.height;
+                if (Guard != "black" && gu < 0.13f && gv > 0.38f && s < 0.25f && v < 0.5f)
+                {
+                    Color g2 = Guard == "steel" ? new Color(Mathf.Clamp01(c.r * 1.9f + 0.06f), Mathf.Clamp01(c.g * 1.9f + 0.06f), Mathf.Clamp01(c.b * 1.9f + 0.08f))
+                                               : Color.Lerp(LacquerRed, LacquerMid, Mathf.Clamp01((v - 0.12f) / 0.3f)) * Mathf.Lerp(0.85f, 1.12f, Mathf.Clamp01(v / 0.45f));
+                    g2.a = 1; px[i] = g2; continue;
+                }
+                if (w <= 0) continue;
+                // value: painted blue is bright; vermilion reads a touch darker, keep the painted shading
+                float nv = Mathf.Clamp01(v * 0.92f);
+                float ns = Mathf.Clamp01(Mathf.Lerp(vs, s, 0.35f));
+                var red = Color.HSVToRGB(vh, ns, nv);
+                // deep navy shadows -> deep crimson rather than near black
+                var o = Color.Lerp(c, red, w); o.a = 1;
+                px[i] = o;
             }
-            pal.Apply(); gloss.Apply();
+            var pal = new Texture2D(alb.width, alb.height, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Trilinear, anisoLevel = 4 };
+            temp.Add(pal);
+            pal.SetPixels32(px); pal.Apply(true);
+            var dump = Arg("-troopDumpAlbedo");
+            if (dump != null) File.WriteAllBytes(dump, pal.EncodeToPNG());
+
+            var gsrc = ReadPng(GlossTex, temp, true).GetPixels32();
+            var gp = new Color32[gsrc.Length];
+            for (int i = 0; i < gp.Length; i++)
+                gp[i] = new Color32((byte)(gsrc[i].r * 0.25f), 0, 0, (byte)(gsrc[i].a * 0.75f));
+            var gloss = new Texture2D(alb.width, alb.height, TextureFormat.RGBA32, true, true) { wrapMode = TextureWrapMode.Clamp };
+            temp.Add(gloss);
+            gloss.SetPixels32(gp); gloss.Apply(true);
+
             var m = new Material(Shader.Find("Standard")); temp.Add(m);
             m.mainTexture = pal;
             m.SetTexture("_MetallicGlossMap", gloss);
@@ -255,86 +379,86 @@ namespace WarPoker.EditorTools
 
         // ================= camera, lights, post =================
 
-        static IEnumerable<Vector3> WorldVerts(Renderer r)
+        class Rig
         {
-            var mf = r.GetComponent<MeshFilter>();
-            var m = r.transform.localToWorldMatrix;
-            foreach (var v in mf.sharedMesh.vertices) yield return m.MultiplyPoint3x4(v);
-        }
+            readonly Camera cam; readonly MeshFilter fig; readonly MeshRenderer figR;
+            readonly GameObject shadow; readonly MeshRenderer shadowR; readonly List<Object> temp;
 
-        static byte[] Shoot(GameObject root, List<Renderer> figure, List<Object> temp)
-        {
-            var camRot = Quaternion.Euler(CamPitch, 0, 0);
-            var right = camRot * Vector3.right; var up = camRot * Vector3.up; var fwd = camRot * Vector3.forward;
-
-            var verts = figure.SelectMany(WorldVerts).ToList();
-            float groundY = verts.Min(v => v.y);
-            float minX = verts.Min(v => v.x), maxX = verts.Max(v => v.x), minZ = verts.Min(v => v.z), maxZ = verts.Max(v => v.z);
-
-            // contact shadow: soft ellipse on the ground under the figure footprint (low verts only)
-            var low = verts.Where(v => v.y < groundY + 0.6f).ToList();
-            var fc = new Vector3((low.Min(v => v.x) + low.Max(v => v.x)) / 2, groundY + 0.01f, (low.Min(v => v.z) + low.Max(v => v.z)) / 2);
-            float sx = Mathf.Max(1.6f, (low.Max(v => v.x) - low.Min(v => v.x)) * 1.25f);
-            float sz = Mathf.Max(1.2f, (low.Max(v => v.z) - low.Min(v => v.z)) * 1.25f);
-            var shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Object.DestroyImmediate(shadow.GetComponent<Collider>());
-            shadow.transform.SetParent(root.transform.parent, false);
-            shadow.transform.position = fc;
-            shadow.transform.rotation = Quaternion.Euler(90, 0, 0);
-            shadow.transform.localScale = new Vector3(sx, sz, 1);
-            var smat = new Material(Shader.Find("Sprites/Default")) { mainTexture = BlobTexture(temp) }; temp.Add(smat);
-            smat.color = new Color(0, 0, 0, ShadowAlpha);
-            var sr = shadow.GetComponent<MeshRenderer>(); sr.sharedMaterial = smat;
-            sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            temp.Add(shadow);
-
-            // ---- framing (orthographic, fit figure + shadow) ----
-            var pts = new List<Vector3>(verts);
-            pts.Add(fc + new Vector3(sx * .38f, 0, 0)); pts.Add(fc - new Vector3(sx * .38f, 0, 0));
-            pts.Add(fc + new Vector3(0, 0, sz * .38f)); pts.Add(fc - new Vector3(0, 0, sz * .38f));
-            float x0 = pts.Min(p => Vector3.Dot(p, right)), x1 = pts.Max(p => Vector3.Dot(p, right));
-            float y0 = pts.Min(p => Vector3.Dot(p, up)), y1 = pts.Max(p => Vector3.Dot(p, up));
-            float half = Mathf.Max(x1 - x0, y1 - y0) / 2f;
-            float margin = Pad + (OutlinePx + 1f) / Size;
-            float ortho = half / (1f - 2f * margin);
-            var center = right * (x0 + x1) / 2 + up * (y0 + y1) / 2;
-
-            var camGo = new GameObject("troop_cam"); temp.Add(camGo);
-            var cam = camGo.AddComponent<Camera>();
-            cam.orthographic = true; cam.orthographicSize = ortho;
-            cam.transform.SetPositionAndRotation(center - fwd * 60f, camRot);
-            cam.nearClipPlane = 1f; cam.farClipPlane = 140f;
-            cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0, 0, 0, 0);
-            cam.allowMSAA = false; cam.allowHDR = false;
-            cam.renderingPath = RenderingPath.Forward;
-
-            // ---- lights: warm key upper-left-front, cool fill/rim from right-back ----
-            var key = new GameObject("key").AddComponent<Light>(); temp.Add(key.gameObject);
-            key.type = LightType.Directional; key.color = new Color(1f, 0.95f, 0.86f); key.intensity = 1.05f;
-            key.transform.rotation = Quaternion.Euler(42, 32, 0);
-            key.shadows = LightShadows.Soft; key.shadowStrength = 0.55f; key.shadowBias = 0.03f; key.shadowNormalBias = 0.25f;
-            var fill = new GameObject("fill").AddComponent<Light>(); temp.Add(fill.gameObject);
-            fill.type = LightType.Directional; fill.color = new Color(0.78f, 0.84f, 1f); fill.intensity = 0.45f;
-            fill.transform.rotation = Quaternion.Euler(18, -125, 0);
-            fill.shadows = LightShadows.None;
-
-            int N = Size * SS;
-            var rt = RenderTexture.GetTemporary(N, N, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1);
-            cam.targetTexture = rt;
-            try
+            public Rig(Transform parent, Material mat, List<Object> temp)
             {
-                // pass 1: shadow only
-                foreach (var r in figure) r.enabled = false;
-                var shadowPx = Grab(cam, rt, N, temp);
-                foreach (var r in figure) r.enabled = true;
-                sr.enabled = false;
-                var figPx = Grab(cam, rt, N, temp);
-                return Compose(figPx, shadowPx, N);
+                this.temp = temp;
+                var f = new GameObject("figure"); f.transform.SetParent(parent, false);
+                fig = f.AddComponent<MeshFilter>(); figR = f.AddComponent<MeshRenderer>(); figR.sharedMaterial = mat;
+
+                shadow = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Object.DestroyImmediate(shadow.GetComponent<Collider>());
+                shadow.transform.SetParent(parent, false);
+                shadow.transform.rotation = Quaternion.Euler(90, 0, 0);
+                var smat = new Material(Shader.Find("Sprites/Default")) { mainTexture = BlobTexture(temp) }; temp.Add(smat);
+                smat.color = new Color(0, 0, 0, ShadowAlpha);
+                shadowR = shadow.GetComponent<MeshRenderer>(); shadowR.sharedMaterial = smat;
+                shadowR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                shadowR.receiveShadows = false;
+
+                var camGo = new GameObject("troop_cam"); camGo.transform.SetParent(parent, false);
+                cam = camGo.AddComponent<Camera>();
+                cam.orthographic = true;
+                cam.nearClipPlane = 1f; cam.farClipPlane = 140f;
+                cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0, 0, 0, 0);
+                cam.allowMSAA = false; cam.allowHDR = false;
+                cam.renderingPath = RenderingPath.Forward;
+                cam.enabled = false;
+
+                // lights: warm key upper-left-front, cool fill/rim from right-back
+                var key = new GameObject("key").AddComponent<Light>(); key.transform.SetParent(parent, false);
+                key.type = LightType.Directional; key.color = new Color(1f, 0.95f, 0.86f); key.intensity = 1.2f;
+                key.transform.rotation = Quaternion.Euler(42, 32, 0);
+                key.shadows = LightShadows.Soft; key.shadowStrength = 0.55f; key.shadowBias = 0.03f; key.shadowNormalBias = 0.25f;
+                var fill = new GameObject("fill").AddComponent<Light>(); fill.transform.SetParent(parent, false);
+                fill.type = LightType.Directional; fill.color = new Color(0.78f, 0.84f, 1f); fill.intensity = 0.7f;
+                fill.transform.rotation = Quaternion.Euler(18, -125, 0);
+                fill.shadows = LightShadows.None;
             }
-            finally
+
+            public Color32[] Shoot(Pose p, Vector3 center, float ortho, int size)
             {
-                cam.targetTexture = null;
-                RenderTexture.ReleaseTemporary(rt);
+                fig.sharedMesh = p.Mesh;
+                shadow.transform.position = p.ShadowC;
+                shadow.transform.localScale = new Vector3(p.ShadowX, p.ShadowZ, 1);
+                var camRot = Quaternion.Euler(CamPitch, 0, 0);
+                cam.orthographicSize = ortho;
+                cam.transform.SetPositionAndRotation(center - camRot * Vector3.forward * 60f, camRot);
+
+                int n = size * SS;
+                var rt = RenderTexture.GetTemporary(n, n, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1);
+                cam.targetTexture = rt;
+                try
+                {
+                    figR.enabled = false; shadowR.enabled = true;
+                    var shadowPx = Grab(rt, n);
+                    figR.enabled = true; shadowR.enabled = false;
+                    var figPx = Grab(rt, n);
+                    return Compose(figPx, shadowPx, n, size);
+                }
+                finally
+                {
+                    cam.targetTexture = null;
+                    RenderTexture.ReleaseTemporary(rt);
+                }
+            }
+
+            Color[] Grab(RenderTexture rt, int n)
+            {
+                cam.Render();
+                var prev = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(n, n, TextureFormat.RGBA32, false);
+                tex.ReadPixels(new Rect(0, 0, n, n), 0, 0);
+                tex.Apply();
+                RenderTexture.active = prev;
+                var px = tex.GetPixels();
+                Object.DestroyImmediate(tex);
+                return px;
             }
         }
 
@@ -355,23 +479,11 @@ namespace WarPoker.EditorTools
             return t;
         }
 
-        static Color[] Grab(Camera cam, RenderTexture rt, int n, List<Object> temp)
-        {
-            cam.Render();
-            var prev = RenderTexture.active;
-            RenderTexture.active = rt;
-            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false); temp.Add(tex);
-            tex.ReadPixels(new Rect(0, 0, n, n), 0, 0);
-            tex.Apply();
-            RenderTexture.active = prev;
-            return tex.GetPixels();
-        }
-
-        /// figure (opaque, alpha = coverage) + dark outline + contact shadow, then 4x box downsample
+        /// figure (opaque, alpha = coverage) + dark outline + contact shadow, then SSxSS box downsample
         /// in premultiplied space and un-premultiply (no dark/white fringes).
-        static byte[] Compose(Color[] fig, Color[] shadow, int n)
+        static Color32[] Compose(Color[] fig, Color[] shadow, int n, int size)
         {
-            float rad = OutlinePx * SS;
+            float rad = OutlineFrac * size * SS;
             int ri = Mathf.CeilToInt(rad + 1);
             var offs = new List<(int dx, int dy, float d)>();
             for (int dy = -ri; dy <= ri; dy++)
@@ -385,12 +497,30 @@ namespace WarPoker.EditorTools
             var solid = new bool[n * n];
             for (int i = 0; i < n * n; i++) solid[i] = fig[i].a > 0.5f;
 
+            // integral image of the solid mask: skip pixels with nothing solid within the outline radius
+            var integ = new int[(n + 1) * (n + 1)];
+            for (int y = 0; y < n; y++)
+            {
+                int row = 0;
+                for (int x = 0; x < n; x++)
+                {
+                    row += solid[y * n + x] ? 1 : 0;
+                    integ[(y + 1) * (n + 1) + x + 1] = integ[y * (n + 1) + x + 1] + row;
+                }
+            }
+            int Count(int x0, int y0, int x1, int y1)
+            {
+                x0 = Mathf.Clamp(x0, 0, n); y0 = Mathf.Clamp(y0, 0, n); x1 = Mathf.Clamp(x1, 0, n); y1 = Mathf.Clamp(y1, 0, n);
+                return integ[y1 * (n + 1) + x1] - integ[y0 * (n + 1) + x1] - integ[y1 * (n + 1) + x0] + integ[y0 * (n + 1) + x0];
+            }
+
             var outA = new float[n * n];
             for (int y = 0; y < n; y++)
                 for (int x = 0; x < n; x++)
                 {
                     int i = y * n + x;
                     if (solid[i]) { outA[i] = 1; continue; }
+                    if (Count(x - ri, y - ri, x + ri + 1, y + ri + 1) == 0) continue;
                     foreach (var o in offs)
                     {
                         int xx = x + o.dx, yy = y + o.dy;
@@ -399,41 +529,30 @@ namespace WarPoker.EditorTools
                     }
                 }
 
-            // premultiplied composite: fig over outline over shadow
-            var pm = new Color[n * n];
-            for (int i = 0; i < n * n; i++)
-            {
-                var f = fig[i]; // background is (0,0,0,0) so this is already premultiplied
-                float oa = outA[i] * OutlineCol.a;
-                var o = new Color(OutlineCol.r * oa, OutlineCol.g * oa, OutlineCol.b * oa, oa);
-                var s = shadow[i];
-                var under = new Color(o.r + s.r * (1 - o.a), o.g + s.g * (1 - o.a), o.b + s.b * (1 - o.a), o.a + s.a * (1 - o.a));
-                float fa = Mathf.Clamp01(f.a);
-                pm[i] = new Color(f.r + under.r * (1 - fa), f.g + under.g * (1 - fa), f.b + under.b * (1 - fa), fa + under.a * (1 - fa));
-            }
-
-            var outTex = new Texture2D(Size, Size, TextureFormat.RGBA32, false);
-            var px = new Color32[Size * Size];
+            var px = new Color32[size * size];
             float inv = 1f / (SS * SS);
-            for (int y = 0; y < Size; y++)
-                for (int x = 0; x < Size; x++)
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
                 {
                     float r = 0, g = 0, b = 0, a = 0;
                     for (int sy = 0; sy < SS; sy++)
                         for (int sx = 0; sx < SS; sx++)
                         {
-                            var c = pm[(y * SS + sy) * n + x * SS + sx];
-                            r += c.r; g += c.g; b += c.b; a += c.a;
+                            int i = (y * SS + sy) * n + x * SS + sx;
+                            // premultiplied composite: fig over outline over shadow
+                            var f = fig[i]; // background is (0,0,0,0) so this is already premultiplied
+                            float oa = outA[i] * OutlineCol.a;
+                            var s = shadow[i];
+                            float ur = OutlineCol.r * oa + s.r * (1 - oa), ug = OutlineCol.g * oa + s.g * (1 - oa),
+                                  ub = OutlineCol.b * oa + s.b * (1 - oa), ua = oa + s.a * (1 - oa);
+                            float fa = Mathf.Clamp01(f.a);
+                            r += f.r + ur * (1 - fa); g += f.g + ug * (1 - fa); b += f.b + ub * (1 - fa); a += fa + ua * (1 - fa);
                         }
                     r *= inv; g *= inv; b *= inv; a *= inv;
                     if (a > 1e-4f) { r /= a; g /= a; b /= a; } else { r = g = b = 0; a = 0; }
-                    px[y * Size + x] = new Color(Mathf.Clamp01(r), Mathf.Clamp01(g), Mathf.Clamp01(b), Mathf.Clamp01(a));
+                    px[y * size + x] = new Color(Mathf.Clamp01(r), Mathf.Clamp01(g), Mathf.Clamp01(b), Mathf.Clamp01(a));
                 }
-            outTex.SetPixels32(px);
-            outTex.Apply();
-            var bytes = outTex.EncodeToPNG();
-            Object.DestroyImmediate(outTex);
-            return bytes;
+            return px;
         }
     }
 }

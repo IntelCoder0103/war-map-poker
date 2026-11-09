@@ -47,3 +47,7 @@ sysinfo.txt
 
 # Map preview exports
 /Previews/
+
+# Unity Asset Store pack (Standard EULA: no redistribution of source files). Only the rendered sprites are committed.
+/Assets/Mini Legion Footman PBR HP Polyart/
+/Assets/Mini Legion Footman PBR HP Polyart.meta

@@ -19,6 +19,7 @@ namespace WarPoker.EditorTools
             ti.alphaIsTransparency = true;
             ti.wrapMode = UnityEngine.TextureWrapMode.Clamp;
             ti.textureCompression = TextureImporterCompression.CompressedHQ;
+            ti.maxTextureSize = 4096; // animation strips are long rows of frames
         }
     }
 }

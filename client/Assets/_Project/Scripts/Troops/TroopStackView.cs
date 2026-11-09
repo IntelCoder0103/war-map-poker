@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using WarPoker.Core;
+using WarPoker.FX;
 using WarPoker.UI;
 
 namespace WarPoker.Troops
@@ -74,6 +75,7 @@ namespace WarPoker.Troops
             float step = size * stepK, rankStep = size * rankK;
 
             Sprite sprite = TroopArt.Soldier();
+            var idle = TroopArt.Frames("idle");
             int index = 0;
             // back ranks first so the front rank is drawn on top
             for (int r = ranks - 1; r >= 0; r--)
@@ -86,12 +88,42 @@ namespace WarPoker.Troops
                 {
                     var img = Icon(index++);
                     img.sprite = sprite;
+                    // each figure idles on its own beat
+                    if (idle != null) SpriteAnim.On(img).Play(idle, TroopArt.IdleFps, true, true);
                     var irt = img.rectTransform;
                     irt.anchoredPosition = new Vector2(x0 + i * step, y);
-                    irt.sizeDelta = new Vector2(size, size);
+                    irt.sizeDelta = new Vector2(size, size) * TroopArt.FrameScale; // layout is in figure size
                     irt.SetAsLastSibling();
                 }
             }
+        }
+
+        /// <summary>The whole squad plays a one-shot clip (e.g. "victory"), then goes back to idling.</summary>
+        public void PlayOnce(string clip, float fps)
+        {
+            var frames = TroopArt.Frames(clip);
+            var idle = TroopArt.Frames("idle");
+            if (frames == null) return;
+            foreach (var img in _icons)
+            {
+                if (img == null || !img.gameObject.activeSelf) continue;
+                var anim = SpriteAnim.On(img);
+                var captured = anim;
+                anim.Play(frames, fps, false, false, () =>
+                {
+                    if (idle != null && captured != null) captured.Play(idle, TroopArt.IdleFps, true, true);
+                });
+            }
+        }
+
+        /// <summary>The squad falls (death clip) and stays down.</summary>
+        public void PlayDeath()
+        {
+            var frames = TroopArt.Frames("death");
+            if (frames == null) return;
+            foreach (var img in _icons)
+                if (img != null && img.gameObject.activeSelf) SpriteAnim.On(img).Play(frames, TroopArt.DeathFps, false);
+            _amount = -1; // the next SetAmount redraws normal figures
         }
 
         Image Icon(int index)

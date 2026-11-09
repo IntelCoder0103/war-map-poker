@@ -330,6 +330,12 @@ namespace WarPoker.Game
             }
         }
 
+        /// <summary>The camp's squad plays a one-shot clip (victory) and goes back to idling.</summary>
+        public void PlaySquad(string clip, float fps) { _troops.PlayOnce(clip, fps); }
+
+        /// <summary>The soldiers at the bet spot fall where they stand (the player is busted).</summary>
+        public void BetDies() { _betTroops.PlayDeath(); }
+
         public void HideBet()
         {
             BetRect.gameObject.SetActive(false);

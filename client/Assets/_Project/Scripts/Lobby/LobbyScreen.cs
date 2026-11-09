@@ -56,7 +56,7 @@ namespace WarPoker.Lobby
             // Balance with a little troop icon.
             var icon = UIKit.Deco(bar.transform, "TroopIcon", TroopArt.Soldier(), Color.white);
             icon.preserveAspect = true;
-            AnchorCenter(icon.rectTransform, -150, 0, 64, 64);
+            AnchorCenter(icon.rectTransform, -150, 0, 64 * TroopArt.FrameScale, 64 * TroopArt.FrameScale);
             _balance = UIKit.Text(bar.transform, "Balance", "", 46, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
             AnchorCenter(_balance.rectTransform, 60, 6, 340, 64);
             var balLabel = UIKit.Text(bar.transform, "BalanceLabel", "soldiers", 22, Theme.InkSoft, TextAnchor.MiddleLeft, FontStyle.Italic);

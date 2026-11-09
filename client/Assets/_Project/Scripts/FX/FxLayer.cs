@@ -98,6 +98,8 @@ namespace WarPoker.FX
                 _imagePool.Add(img);
             }
             img.gameObject.SetActive(true);
+            var oldAnim = img.GetComponent<SpriteAnim>();
+            if (oldAnim != null) oldAnim.Stop();
             img.sprite = sprite;
             img.color = color;
             img.preserveAspect = true;
@@ -174,19 +176,22 @@ namespace WarPoker.FX
         IEnumerator MarchOne(Sprite sprite, Vector2 from, Vector2 to, float duration, float delay)
         {
             if (delay > 0f) yield return Tween.Delay(delay);
-            var img = GetImage(sprite, Color.white, new Vector2(34, 34));
+            var walk = TroopArt.Frames("walk");
+            var img = GetImage(sprite, Color.white, Vector2.one * 38f * TroopArt.FrameScale);
             var rt = img.rectTransform;
             rt.anchoredPosition = from;
             bool faceLeft = to.x < from.x;
             rt.localScale = new Vector3(faceLeft ? -1f : 1f, 1f, 1f);
+            if (walk != null) SpriteAnim.On(img).Play(walk, TroopArt.WalkFps, true, true);
             yield return Tween.Value(duration, k =>
             {
                 if (rt == null) return;
                 Vector2 p = Vector2.Lerp(from, to, k);
-                p.y += Mathf.Abs(Mathf.Sin(k * Mathf.PI * 4f)) * 7f; // marching bob
+                if (walk == null) p.y += Mathf.Abs(Mathf.Sin(k * Mathf.PI * 4f)) * 7f; // bob when there is no walk clip
                 rt.anchoredPosition = p;
-            }, Ease.InOutQuad);
+            }, walk != null ? (System.Func<float, float>)Ease.Linear : Ease.InOutQuad);
             yield return Tween.FadeGraphic(img, 0f, 0.1f);
+            if (walk != null) SpriteAnim.On(img).Stop();
             img.gameObject.SetActive(false);
         }
 
