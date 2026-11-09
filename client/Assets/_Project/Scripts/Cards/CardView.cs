@@ -130,28 +130,29 @@ namespace WarPoker.Cards
             FinishBuild(ppu);
         }
 
-        // Compact face: rank in the upper part, as big as fits; suit pip below it.
+        // Compact face: a small suit pip in the top-left corner and the rank big in the middle.
         void BuildCompactFace(float w, float h)
         {
-            _rankSize = Mathf.Max(12, Mathf.RoundToInt(Mathf.Min(h * 0.5f, w * 0.78f)));
-            _rankSizeTen = Mathf.Max(10, Mathf.RoundToInt(Mathf.Min(h * 0.44f, w * 0.52f)));
+            float pip = Mathf.Max(8f, w * 0.30f), pad = Mathf.Max(2f, w * 0.07f);
+            _suit = UIKit.Deco(_face, "Suit", null, Theme.CardBlack);
+            _suit.preserveAspect = true;
+            var srt = _suit.rectTransform;
+            srt.anchorMin = srt.anchorMax = new Vector2(0f, 1f);
+            srt.pivot = new Vector2(0f, 1f);
+            srt.anchoredPosition = new Vector2(pad, -pad);
+            srt.sizeDelta = new Vector2(pip, pip);
+
+            _rankSize = Mathf.Max(12, Mathf.RoundToInt(Mathf.Min(h * 0.62f, w * 0.9f)));
+            _rankSizeTen = Mathf.Max(10, Mathf.RoundToInt(Mathf.Min(h * 0.5f, w * 0.6f)));
             _rank = UIKit.Text(_face, "Rank", "", _rankSize, Theme.CardBlack, TextAnchor.MiddleCenter, FontStyle.Bold);
             _rank.horizontalOverflow = HorizontalWrapMode.Overflow;
             _rank.verticalOverflow = VerticalWrapMode.Overflow;
             var rrt = _rank.rectTransform;
-            rrt.anchorMin = new Vector2(0, 0.42f);
-            rrt.anchorMax = new Vector2(1, 1);
-            rrt.offsetMin = new Vector2(0, 0);
-            rrt.offsetMax = new Vector2(0, -h * 0.03f);
-
-            _suit = UIKit.Deco(_face, "Suit", null, Theme.CardBlack);
-            _suit.preserveAspect = true;
-            var srt = _suit.rectTransform;
-            float suitSize = Mathf.Min(w * 0.5f, h * 0.36f);
-            srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0f);
-            srt.pivot = new Vector2(0.5f, 0f);
-            srt.anchoredPosition = new Vector2(0, h * 0.08f);
-            srt.sizeDelta = new Vector2(suitSize, suitSize);
+            rrt.anchorMin = Vector2.zero;
+            rrt.anchorMax = Vector2.one;
+            // a little below centre, clear of the corner pip
+            rrt.offsetMin = new Vector2(0, -h * 0.02f);
+            rrt.offsetMax = new Vector2(0, -h * 0.14f);
         }
 
         void FinishBuild(float ppu)
