@@ -23,11 +23,11 @@ namespace WarPoker.EditorTools
     /// same pixel in every frame of every strip (horizontally centred, so mirroring the sprite
     /// for leftward movement does not shift it).
     ///
-    /// Look: hand-painted HP texture with the blue cloth hue-shifted to vermilion, the dark helmet-guard
-    /// plates and the shield's inner face turned to red lacquer, steel and gold trim kept; ortho 3/4 camera
+    /// Look: the pack's hand-painted HP texture in its original blue (with -troopColors red: blue cloth
+    /// hue-shifted to vermilion, helmet-guard plates and the shield's inner face in red lacquer); ortho 3/4 camera
     /// looking down 24°, warm key + cool fill, 4x supersampling, dark outline, soft contact shadow.
     /// Batch: Unity -batchmode -quit -projectPath client -executeMethod WarPoker.EditorTools.TroopRenderer.RenderAll
-    /// Optional args: -troopOut &lt;dir&gt; (write elsewhere), -troopYaw &lt;deg&gt;, -troopGuard red|black|steel,
+    /// Optional args: -troopOut &lt;dir&gt; (write elsewhere), -troopYaw &lt;deg&gt;, -troopColors original|red, -troopGuard red|black|steel,
     /// -troopDumpAlbedo &lt;png&gt; (save the recoloured texture for inspection).
     /// Needs a graphics device (no -nographics).
     /// </summary>
@@ -77,6 +77,8 @@ namespace WarPoker.EditorTools
         static readonly Color LacquerMid = C(170, 36, 26);
         /// Dark plates of the helmet guard: "red" lacquer (default, reads best at ~40 px), "black" (as painted) or "steel".
         static string Guard => Arg("-troopGuard") ?? "red";
+        /// Colours: "original" (the pack's blue footman, the default the user picked) or "red" (Chinese-army recolour).
+        static string Palette => Arg("-troopColors") ?? "original";
         // inside face of the shield in the HP texture: centre (u, v) and radius inside the steel rim
         static readonly Vector3 ShieldBack = new Vector3(610f / 1024f, 1f - 480f / 1024f, 84f / 1024f);
 
@@ -308,13 +310,13 @@ namespace WarPoker.EditorTools
             return t;
         }
 
-        /// HP albedo with blue cloth hue-shifted to vermilion; PBR smoothness for small glints on metal / gold.
+        /// HP albedo as painted (or, with -troopColors red, blue cloth hue-shifted to vermilion); PBR smoothness for small glints on metal / gold.
         static Material MakeMaterial(List<Object> temp)
         {
             var alb = ReadPng(Albedo, temp);
             var px = alb.GetPixels32();
             Color.RGBToHSV(Verm, out float vh, out float vs, out float vv);
-            for (int i = 0; i < px.Length; i++)
+            for (int i = 0; Palette == "red" && i < px.Length; i++)
             {
                 Color c = px[i];
                 Color.RGBToHSV(c, out float h, out float s, out float v);
