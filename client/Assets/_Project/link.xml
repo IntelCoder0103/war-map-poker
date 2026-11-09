@@ -1,0 +1,7 @@
+<!-- Keep types that are only touched through reflection (Newtonsoft DTOs, Socket.IO client) from IL2CPP stripping. -->
+<linker>
+  <assembly fullname="Assembly-CSharp">
+    <namespace fullname="WarPoker.Net" preserve="all"/>
+  </assembly>
+  <assembly fullname="SocketIOUnityAssembly" preserve="all"/>
+</linker>

@@ -1,0 +1,32 @@
+# Local dev and tests.
+#   docker compose up -d mongo        -> MongoDB on localhost:27017
+#   docker compose up server          -> server on localhost:3000 (Node 16)
+#   docker compose run --rm test      -> all tests on Node 16
+services:
+  mongo:
+    image: mongo:6
+    ports: ["27017:27017"]
+    volumes: [mongo-data:/data/db]
+
+  server:
+    image: node:16-alpine
+    working_dir: /app
+    command: sh -c "npm ci --omit=dev && node src/index.js"
+    environment:
+      MONGO_URL: mongodb://mongo:27017/warpoker
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+    ports: ["3000:3000"]
+    volumes: [./:/app, /app/node_modules]
+    depends_on: [mongo]
+
+  test:
+    image: node:16-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npx jest --runInBand"
+    environment:
+      MONGO_URL: mongodb://mongo:27017/warpoker_test
+    volumes: [./:/app, /app/node_modules]
+    depends_on: [mongo]
+
+volumes:
+  mongo-data:

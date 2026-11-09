@@ -1,0 +1,1 @@
+Optional unit sprites: spearman.png archer.png ranger.png cavalry.png knight.png. See client/README.md.

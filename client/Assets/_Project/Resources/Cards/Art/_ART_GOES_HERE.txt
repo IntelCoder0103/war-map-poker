@@ -1,0 +1,1 @@
+Drop card art sprites here: Ah.png, Td.png, ... and default.png. See client/README.md.

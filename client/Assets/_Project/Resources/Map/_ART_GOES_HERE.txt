@@ -1,0 +1,1 @@
+Optional: background.png (map), compass.png. Card back goes in Cards/back.png. See client/README.md.
