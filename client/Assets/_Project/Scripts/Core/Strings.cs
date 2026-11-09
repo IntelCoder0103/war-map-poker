@@ -52,6 +52,7 @@ namespace WarPoker.Core
             // Private rooms
             { "CreatePrivate", "Private room" },
             { "JoinWithCode", "Join with code" },
+            { "PrivateTagline", "Your stakes, your friends" },
             { "CreatePrivateTitle", "Private room" },
             { "PrivateBuyIn", "Buy-in" },
             { "PrivateBigBlind", "Big blind" },

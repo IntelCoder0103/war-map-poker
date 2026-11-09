@@ -11,7 +11,7 @@ using WarPoker.UI;
 namespace WarPoker.Lobby
 {
     /// <summary>
-    /// Lobby: user, balance, refill, and the 5 rooms with live player counts
+    /// Lobby: user, balance, refill, and the rooms (a 3-column grid of square cards) with live player counts
     /// (lobby:subscribe / lobby:rooms). No animations here by design.
     /// </summary>
     public class LobbyScreen : ScreenBase
@@ -82,23 +82,62 @@ namespace WarPoker.Lobby
 
             // Room list
             var header = UIKit.Text(Root, "Header", Strings.ChooseBattlefield, 46, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UIKit.Place(header.rectTransform, new Vector2(0.5f, 1f), new Vector2(0, -200), new Vector2(720, 70));
+            UIKit.Place(header.rectTransform, new Vector2(0.5f, 1f), new Vector2(0, -200), new Vector2(1000, 70));
             UIKit.Title(header, 3f);
 
-            // Private rooms: create one with your own stakes, or join a friend's with its code.
-            var create = UIKit.Button(Root, "CreatePrivate", Strings.Get("CreatePrivate"), new Vector2(270, 70), Theme.Gold, Theme.ParchmentLight, 28, OpenCreate);
-            UIKit.Place((RectTransform)create.transform, new Vector2(0.5f, 1f), new Vector2(-515, -200), new Vector2(270, 70));
-            var byCode = UIKit.Button(Root, "JoinWithCode", Strings.Get("JoinWithCode"), new Vector2(270, 70), Theme.Forest, Theme.ParchmentLight, 28, OpenJoinCode);
-            UIKit.Place((RectTransform)byCode.transform, new Vector2(0.5f, 1f), new Vector2(515, -200), new Vector2(270, 70));
-
             _list = UIKit.Rect("Rooms", Root);
-            UIKit.Place(_list, new Vector2(0.5f, 0.5f), new Vector2(0, -90), new Vector2(1300, 660));
+            UIKit.Place(_list, new Vector2(0.5f, 0.5f), new Vector2(0, GridCenterY), new Vector2(GridW, GridH));
 
             _status = UIKit.Text(Root, "Status", "", 30, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Place(_status.rectTransform, new Vector2(0.5f, 0f), new Vector2(0, 50), new Vector2(1400, 60));
             UIKit.AddOutline(_status, 2f);
 
+            _privateTile = BuildPrivateTile();
             BuildPrivateDialogs();
+        }
+
+        // Rooms are square cards in a 3-column grid; the last square holds the private-room options.
+        const int GridCols = 3;
+        const float GridW = 1100f, GridH = 730f, GridGap = 30f, GridCenterY = -70f;
+        RectTransform _privateTile;
+
+        float CardSize(int cells)
+        {
+            int rows = Mathf.Max(1, (cells + GridCols - 1) / GridCols);
+            float byHeight = (GridH - (rows - 1) * GridGap) / rows;
+            float byWidth = (GridW - (GridCols - 1) * GridGap) / GridCols;
+            return Mathf.Min(byHeight, byWidth);
+        }
+
+        void PlaceCell(RectTransform rt, int index, int cells)
+        {
+            float size = CardSize(cells);
+            int rows = Mathf.Max(1, (cells + GridCols - 1) / GridCols);
+            int col = index % GridCols, row = index / GridCols;
+            float x = (col - (GridCols - 1) * 0.5f) * (size + GridGap);
+            float y = ((rows - 1) * 0.5f - row) * (size + GridGap);
+            UIKit.Place(rt, new Vector2(0.5f, 0.5f), new Vector2(x, y), new Vector2(340, 340));
+            float k = size / 340f; // cards are laid out at 340x340 and scaled to fit
+            rt.localScale = new Vector3(k, k, 1f);
+        }
+
+        RectTransform BuildPrivateTile()
+        {
+            var card = UIKit.Panel(_list, "PrivateRooms", "panel_window", Color.white, 0.42f);
+            var t = card.transform;
+            var name = UIKit.Text(t, "Name", Strings.Get("CreatePrivate"), 40, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Center(name.rectTransform, new Vector2(0, 128), new Vector2(300, 56));
+            var tag = UIKit.Text(t, "Tagline", Strings.Get("PrivateTagline"), 22, Theme.InkSoft, TextAnchor.MiddleCenter, FontStyle.Italic);
+            UIKit.Center(tag.rectTransform, new Vector2(0, 92), new Vector2(300, 32));
+            var crown = UIKit.Deco(t, "Crown", UISkin.Get("crown"), Color.white);
+            crown.preserveAspect = true;
+            UIKit.Center(crown.rectTransform, new Vector2(0, 32), new Vector2(110, 76));
+            var create = UIKit.Button(t, "Create", Strings.Get("Create"), new Vector2(250, 66), Theme.Gold, Theme.ParchmentLight, 30, OpenCreate);
+            UIKit.Center((RectTransform)create.transform, new Vector2(0, -52), new Vector2(250, 66));
+            var byCode = UIKit.Button(t, "JoinWithCode", Strings.Get("JoinWithCode"), new Vector2(250, 66), Theme.Forest, Theme.ParchmentLight, 28, OpenJoinCode);
+            UIKit.Center((RectTransform)byCode.transform, new Vector2(0, -126), new Vector2(250, 66));
+            PlaceCell(card.rectTransform, 5, 6);
+            return card.rectTransform;
         }
 
         void BuildPrivateDialogs()
@@ -199,7 +238,7 @@ namespace WarPoker.Lobby
         {
             if (rooms == null) return;
             _rooms = rooms;
-            const float rowH = 112f, gap = 18f;
+            int cells = rooms.Count + 1;
             for (int i = 0; i < rooms.Count; i++)
             {
                 var row = i < _rows.Count ? _rows[i] : CreateRow(i);
@@ -209,11 +248,11 @@ namespace WarPoker.Lobby
                 row.BuyIn.text = Strings.Format("BuyIn", UIKit.Num(room.buyIn));
                 row.Blinds.text = Strings.Format("Blinds", UIKit.Num(room.smallBlind), UIKit.Num(room.bigBlind));
                 row.Players.text = Strings.Format("Players", room.players);
-                var rt = (RectTransform)row.Button.transform;
-                UIKit.Place(rt, new Vector2(0.5f, 1f), new Vector2(0, -rowH * 0.5f - i * (rowH + gap)), new Vector2(1300, rowH));
+                PlaceCell((RectTransform)row.Button.transform, i, cells);
                 row.Button.gameObject.SetActive(true);
             }
             for (int i = rooms.Count; i < _rows.Count; i++) _rows[i].Button.gameObject.SetActive(false);
+            PlaceCell(_privateTile, rooms.Count, cells);
             Refresh();
         }
 
@@ -221,7 +260,7 @@ namespace WarPoker.Lobby
         {
             var row = new RoomRow();
             var card = UIKit.Panel(_list, "Room" + index, "panel_window", Color.white, 0.42f);
-            card.rectTransform.sizeDelta = new Vector2(1300, 112);
+            card.rectTransform.sizeDelta = new Vector2(340, 340);
             row.Button = card.gameObject.AddComponent<Button>();
             row.Button.targetGraphic = card;
             var colors = row.Button.colors;
@@ -231,23 +270,24 @@ namespace WarPoker.Lobby
             row.Button.colors = colors;
             var t = row.Button.transform;
 
-            // Room badge: a bigger squad for a bigger room (1 soldier for Recruit ... 5 for King).
-            // Squad badge on the left of the card; the text columns start after it.
-            var crest = TroopStackView.Create(t, "Crest", new Vector2(250, 92), 62f);
-            UIKit.Place((RectTransform)crest.transform, new Vector2(0, 0.5f), new Vector2(160, 0), new Vector2(250, 92));
+            // Square card, top to bottom: name, seated count, squad badge, buy-in, blinds, March.
+            row.Name = UIKit.Text(t, "Name", "", 42, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Center(row.Name.rectTransform, new Vector2(0, 128), new Vector2(300, 56));
+            row.Players = UIKit.Text(t, "Players", "", 22, Theme.InkSoft, TextAnchor.MiddleCenter, FontStyle.Italic);
+            UIKit.Center(row.Players.rectTransform, new Vector2(0, 92), new Vector2(300, 32));
+
+            // A bigger squad for a bigger room (1 soldier for Recruit ... 5 for King).
+            var crest = TroopStackView.Create(t, "Crest", new Vector2(300, 104), 76f);
+            UIKit.Center((RectTransform)crest.transform, new Vector2(0, 26), new Vector2(300, 104));
             crest.SetFigures(index + 1);
 
-            row.Name = UIKit.Text(t, "Name", "", 40, Theme.Crimson, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIKit.Place(row.Name.rectTransform, new Vector2(0, 0.5f), new Vector2(400, 0), new Vector2(180, 70));
-            row.BuyIn = UIKit.Text(t, "BuyIn", "", 30, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIKit.Place(row.BuyIn.rectTransform, new Vector2(0, 0.5f), new Vector2(610, 0), new Vector2(220, 60));
-            row.Blinds = UIKit.Text(t, "Blinds", "", 28, Theme.InkSoft, TextAnchor.MiddleLeft);
-            UIKit.Place(row.Blinds.rectTransform, new Vector2(0, 0.5f), new Vector2(850, 0), new Vector2(240, 60));
-            row.Players = UIKit.Text(t, "Players", "", 26, Theme.InkSoft, TextAnchor.MiddleLeft, FontStyle.Italic);
-            UIKit.Place(row.Players.rectTransform, new Vector2(1, 0.5f), new Vector2(-245, 0), new Vector2(120, 60));
+            row.BuyIn = UIKit.Text(t, "BuyIn", "", 30, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Center(row.BuyIn.rectTransform, new Vector2(0, -42), new Vector2(300, 40));
+            row.Blinds = UIKit.Text(t, "Blinds", "", 24, Theme.InkSoft, TextAnchor.MiddleCenter);
+            UIKit.Center(row.Blinds.rectTransform, new Vector2(0, -76), new Vector2(300, 34));
 
             var marchBg = UIKit.Panel(t, "MarchBg", "btn_red", Color.white, 0.55f, true);
-            UIKit.Place(marchBg.rectTransform, new Vector2(1, 0.5f), new Vector2(-105, 0), new Vector2(170, 78));
+            UIKit.Center(marchBg.rectTransform, new Vector2(0, -126), new Vector2(220, 66));
             row.Action = UIKit.Text(marchBg.transform, "Label", Strings.March, 32, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(row.Action.rectTransform);
             UIKit.AddOutline(row.Action, 2f);

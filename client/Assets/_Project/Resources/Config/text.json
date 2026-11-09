@@ -152,5 +152,6 @@
   "Error.USER_NOT_FOUND": "No commander with that name.",
   "Error.USER_OFFLINE": "That commander is not online.",
   "Error.CANNOT_INVITE_SELF": "You are already here.",
-  "Error.TOO_MANY_INVITES": "Wait a moment before inviting them again."
+  "Error.TOO_MANY_INVITES": "Wait a moment before inviting them again.",
+  "PrivateTagline": "Your stakes, your friends"
 }
