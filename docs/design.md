@@ -14,7 +14,7 @@ Texas Hold'em for Android. Instead of a green felt table, players sit around an 
 So 1,250 soldiers is drawn as 4 soldier figures next to "1,250".
 
 ## Stack
-- **Client:** Unity 2022.3 LTS (2D), Android only (min API 24, IL2CPP, ARM64).
+- **Client:** Unity 2022.1.22f1 (2D), Android only (min API 24, IL2CPP, ARM64).
 - **Server:** Node 16, Express, Socket.IO 4.
 - **Database:** MongoDB 6.
 - **Network:** made for mobile 4G. Messages are small, the client reconnects on its own, and the server holds a disconnected player's seat for 60 seconds.

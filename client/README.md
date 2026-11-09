@@ -5,12 +5,12 @@ The server (Node, `../server`) is the only authority; this client only renders s
 The contract is `../docs/protocol.md`.
 
 ## Requirements
-- Unity **2022.3 LTS** (made for 2022.3.50f1; any 2022.3.x should work) with **Android Build Support** (SDK/NDK + OpenJDK) from Unity Hub.
+- Unity **2022.1.22f1** (the client's required version) with **Android Build Support** (SDK/NDK + OpenJDK) from Unity Hub. The project also opens in 2022.3 LTS, but that upgrades it; don't commit the upgraded ProjectVersion.txt / packages-lock.json.
 - Internet access the first time you open the project: packages are resolved from the Unity registry and from GitHub
   (`com.itisnajim.socketiounity`, a git package, so **git must be installed and on PATH**).
 
 ## First open
-1. Unity Hub → *Add project from disk* → select this `client/` folder → open with 2022.3.
+1. Unity Hub → *Add project from disk* → select this `client/` folder → open with 2022.1.22f1.
 2. Wait for package import and the script compile to finish.
    (`ProjectSettings/` only contains `ProjectVersion.txt`; Unity creates the rest with defaults.)
 3. Menu **WarPoker → Setup Project**. It:

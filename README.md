@@ -1,6 +1,6 @@
 # War-Map Poker
 
-Texas Hold'em on an old war map, betting soldiers. Android (Unity 2022.3) + Node 16 + MongoDB.
+Texas Hold'em on an old war map, betting soldiers. Android (Unity 2022.1.22) + Node 16.2 + MongoDB 4.2.
 
 - [docs/design.md](docs/design.md): what the game is and how it plays
 - [docs/protocol.md](docs/protocol.md): the client/server message format
@@ -14,7 +14,7 @@ docker compose up -d mongo
 npm install && npm start                       # server on :3000
 node tools/bots.js --count 3                   # optional: bots to play against
 ```
-Then open `client/` in Unity 2022.3 and follow client/README.md.
+Then open `client/` in Unity 2022.1.22f1 and follow client/README.md.
 
 ## Customizing
 Wording, art, client settings and server game settings live in config files, so most changes need no code. See [docs/customizing.md](docs/customizing.md).
