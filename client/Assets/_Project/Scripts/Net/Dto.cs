@@ -78,6 +78,7 @@ namespace WarPoker.Net
         public bool allIn;
         public bool ready;
         public bool connected = true;
+        public bool leavingAfterHand;   // pressed Retreat during a hand: folds on their turn, leaves when it ends
         public string lastAction;
         public List<string> cards;
     }

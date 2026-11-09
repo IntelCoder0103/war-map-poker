@@ -80,6 +80,10 @@ function attachSockets(io, manager, log) {
       return { balance: u ? u.balance : null };
     });
     on('table:show', () => seatedTable().showCards(user.userId));
+    on('table:leaveAfterHand', async ({ on }) => {
+      const r = await seatedTable().setLeaveAfterHand(user.userId, on !== false);
+      return { leftNow: r.leftNow, balance: r.user ? r.user.balance : null };
+    });
     on('table:sync', () => {
       socket.emit('table:state', seatedTable().snapshotFor(user.userId));
     });

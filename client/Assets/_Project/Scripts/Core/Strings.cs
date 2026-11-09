@@ -51,6 +51,9 @@ namespace WarPoker.Core
 
             // Table
             { "Leave", "Retreat" },
+            { "CancelRetreat", "Stay" },
+            { "Tag.leaving", "RETREATING" },
+            { "RetreatAfterHand", "You will retreat when this hand ends" },
             { "TableInfo", "{0}   Blinds {1}/{2}" },
             { "Hand", "Hand #{0}" },
             { "Ready", "Ready for battle" },

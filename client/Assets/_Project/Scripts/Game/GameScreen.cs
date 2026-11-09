@@ -38,7 +38,8 @@ namespace WarPoker.Game
         Text _potText, _info, _centerMsg, _readyInfo;
         RectTransform _potRt, _deckRt;
         ActionBar _actions;
-        Button _readyButton, _showButton;
+        Button _readyButton, _showButton, _leaveButton;
+        bool _retreatPending;   // the toggle request is on its way
         GameObject _readyPanel;
         bool _showRequested;
 
@@ -137,8 +138,10 @@ namespace WarPoker.Game
             _potText.horizontalOverflow = HorizontalWrapMode.Overflow;
 
             // Top-left: retreat + table info.
-            var leave = UIKit.Button(_board, "Leave", Strings.Leave, new Vector2(190, 64), Theme.Leather, Theme.ParchmentLight, 28, OnLeave);
-            UIKit.Center((RectTransform)leave.transform, new Vector2(-835, 490), new Vector2(190, 64));
+            // Retreat toggles "leave after this hand" during a hand (fold on your turn, leave when it ends);
+            // outside a hand it leaves at once.
+            _leaveButton = UIKit.Button(_board, "Leave", Strings.Leave, new Vector2(190, 64), Theme.Leather, Theme.ParchmentLight, 28, OnLeave);
+            UIKit.Center((RectTransform)_leaveButton.transform, new Vector2(-835, 490), new Vector2(190, 64));
             _info = UIKit.Text(_board, "Info", "", 24, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
             UIKit.AddOutline(_info, 2f);
             UIKit.Center(_info.rectTransform, new Vector2(-700, 420), new Vector2(460, 60));
@@ -519,6 +522,7 @@ namespace WarPoker.Game
             _info.text = info;
 
             RenderReady(s);
+            RenderLeaveButton(s);
             _actions.Render(s);
         }
 
@@ -595,30 +599,42 @@ namespace WarPoker.Game
 
         void OnLeave()
         {
-            if (_leaving) return;
+            if (_leaving || _retreatPending) return;
             if (_state == null)
             {
                 ExitToLobby(null);
                 return;
             }
-            _leaving = true;
-            App.Socket.Request("table:leave", new JObject(), ack =>
+            var me = _state.Me;
+            bool turnOn = me == null || !me.leavingAfterHand;
+            _retreatPending = true;
+            App.Socket.Request("table:leaveAfterHand", new JObject { ["on"] = turnOn }, ack =>
             {
+                _retreatPending = false;
                 bool ok = ack.Value<bool>("ok");
                 string error = ack.Value<string>("error");
-                if (ok || error == "NOT_SEATED")
+                if (error == "NOT_SEATED") { ExitToLobby(null); return; }
+                if (!ok) { App.Toast(Strings.ErrorText(error)); return; }
+                if (ack.Value<bool>("leftNow"))
                 {
+                    // Not in a hand: left at once.
+                    _leaving = true;
                     var bal = ack["balance"];
-                    if (ok && bal != null && bal.Type == JTokenType.Integer && App.Session.User != null)
+                    if (bal != null && bal.Type == JTokenType.Integer && App.Session.User != null)
                         App.Session.SetBalance((long)bal, App.Session.User.nextRefillAt);
                     ExitToLobby(null);
+                    return;
                 }
-                else
-                {
-                    _leaving = false;
-                    App.Toast(Strings.ErrorText(error));
-                }
+                if (turnOn) App.Toast(Strings.Get("RetreatAfterHand"), 2.5f);
+                // The server broadcasts a "leaving" event; the button label follows the snapshot.
             });
+        }
+
+        void RenderLeaveButton(Snapshot s)
+        {
+            var me = s != null ? s.Me : null;
+            bool on = me != null && me.leavingAfterHand;
+            UIKit.ButtonLabel(_leaveButton).text = on ? Strings.Get("CancelRetreat") : Strings.Leave;
         }
 
         // ---------- event animations ----------

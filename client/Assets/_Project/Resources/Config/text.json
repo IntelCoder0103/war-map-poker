@@ -116,5 +116,8 @@
   "Error.TIMEOUT": "The server did not answer in time.",
   "Error.NETWORK": "Cannot reach the server. Check the address and your connection.",
   "Error.unknown": "Something went wrong.",
-  "Error.other": "Error: {0}"
+  "Error.other": "Error: {0}",
+  "CancelRetreat": "Stay",
+  "Tag.leaving": "RETREATING",
+  "RetreatAfterHand": "You will retreat when this hand ends"
 }

@@ -271,6 +271,11 @@ namespace WarPoker.Game
                 _tag.text = handName;
                 _tag.color = Theme.GoldLight;
             }
+            else if (!waiting && seat.leavingAfterHand)
+            {
+                _tag.text = Strings.Get("Tag.leaving");
+                _tag.color = Theme.GoldLight;
+            }
             else if (!waiting && !seat.inHand)
             {
                 _tag.text = Strings.NextHand;

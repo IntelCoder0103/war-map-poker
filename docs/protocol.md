@@ -66,6 +66,7 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 | `table:action` | `{ type, amount? }` | `{ ok }` | `type`: `fold`, `check`, `call`, `raise`, `allin`. For `raise`, `amount` is the total bet to raise *to* this street. Errors: `NOT_YOUR_TURN`, `ILLEGAL_ACTION`, `BAD_AMOUNT` |
 | `table:leave` | `{}` | `{ ok, balance }` | Your stack goes back to your balance. If you're in a hand, you fold first. If you're all-in, you are not folded: you stay in the hand, `balance` is `null`, and your stack (with any winnings) is paid when the hand ends. |
 | `table:show` | `{}` | `{ ok }` | Only for the player who just won because everyone else folded, until the next hand starts (`canShowCards` in the snapshot). Reveals their hole cards to the table. Error: `CANNOT_SHOW` |
+| `table:leaveAfterHand` | `{ on }` | `{ ok, leftNow, balance }` | The Retreat toggle. Outside a hand you leave at once (`leftNow: true`, `balance` is your new balance). During a hand, `on: true` folds you automatically on your turn (right away if it's your turn now) and removes you when the hand ends (`table:removed {reason:"left"}`); `on: false` cancels. |
 | `table:sync` | `{}` | `{ ok }` | The server sends a fresh `table:state` |
 
 ### Server → client
@@ -106,6 +107,7 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
       "folded": false, "allIn": false,
       "ready": true,            // pressed Ready (matters during the waiting phase)
       "connected": true,
+      "leavingAfterHand": false, // pressed Retreat during this hand (show "RETREATING")
       "lastAction": "raise",    // fold|check|call|raise|allin|sb|bb|null; resets each street
       "cards": null }           // revealed cards at showdown, otherwise null
   ],
@@ -138,6 +140,7 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 | `potAwarded` | `{ awards: [ { amount, winners: [ { seat, amount } ], handName, bestCards: [...] } ] }`. `handName` is `null` and `bestCards` is `[]` when everyone else folded. |
 | `waiting` | `{}`. The table went back to the `waiting` phase: fewer than 2 players with soldiers are left, and everyone's `ready` was reset. Show the Ready button again. |
 | `handEnded` | `{ handNumber }`. The next hand starts after about 8 seconds after a showdown, or 4.5 seconds when everyone folded, if 2 or more players with soldiers remain. Otherwise the table goes back to `waiting`. |
+| `leaving` | `{ seat, on }`. A player turned "retreat after this hand" on or off. |
 | `cardsShown` | `{ seat, cards }`. A fold winner chose to show their hole cards; `state.seats[seat].cards` now holds them. |
 
 ### Table flow
