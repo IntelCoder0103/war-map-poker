@@ -13,18 +13,20 @@ namespace WarPoker.Troops
         static Sprite _soldier;
         static readonly Dictionary<string, Sprite[]> Strips = new Dictionary<string, Sprite[]>();
 
-        // Playback speed per clip (frames per second).
-        public const float IdleFps = 11f, WalkFps = 12f, VictoryFps = 9f, DeathFps = 14f;
+        // Playback speed per clip (frames per second) and frame size: from ArtCatalog (Resources/Config/art.json).
+        public static float IdleFps { get { return ArtCatalog.SoldierClip("idle").Fps; } }
+        public static float WalkFps { get { return ArtCatalog.SoldierClip("walk").Fps; } }
+        public static float VictoryFps { get { return ArtCatalog.SoldierClip("victory").Fps; } }
+        public static float DeathFps { get { return ArtCatalog.SoldierClip("death").Fps; } }
 
         /// <summary>
         /// The rendered frames leave room around the soldier (spear, victory raise, death fall),
-        /// so the standing figure fills about half the frame: draw frames this much larger
-        /// than the figure size you want on screen.
+        /// so frames are drawn this much larger than the figure size wanted on screen.
         /// </summary>
-        public const float FrameScale = 2f;
+        public static float FrameScale { get { return ArtCatalog.SoldierFrameScale; } }
 
         /// <summary>
-        /// Animation frames from Resources/Troops/soldier_{clip} (idle, walk, victory, death):
+        /// Animation frames from the soldier clips in ArtCatalog (idle, walk, victory, death):
         /// one row of square frames, frame count = width / height. Null if the strip is missing.
         /// </summary>
         public static Sprite[] Frames(string clip)
@@ -32,7 +34,7 @@ namespace WarPoker.Troops
             Sprite[] frames;
             if (Strips.TryGetValue(clip, out frames)) return frames;
             frames = null;
-            var strip = Resources.Load<Sprite>("Troops/soldier_" + clip);
+            var strip = Resources.Load<Sprite>(ArtCatalog.SoldierClip(clip).Path);
             if (strip != null)
             {
                 var tex = strip.texture;
@@ -62,7 +64,7 @@ namespace WarPoker.Troops
         public static Sprite Soldier()
         {
             if (_soldier != null) return _soldier;
-            _soldier = Resources.Load<Sprite>("Troops/soldier");
+            _soldier = Resources.Load<Sprite>(ArtCatalog.Path("soldier.icon"));
             if (_soldier == null) _soldier = ProcSprites.FromFn("troop_soldier", 64, 64, Spearman, 3, 2, Outline);
             return _soldier;
         }

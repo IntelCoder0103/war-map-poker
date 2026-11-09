@@ -1,0 +1,8 @@
+{
+  "serverUrl": "http://95.217.62.59:3456",
+  "wordingFile": "Config/text",
+  "maxSquadFigures": 20,
+  "showdownHoldSeconds": 1.6,
+  "marchSeconds": 0.7,
+  "winnerCrownSeconds": 1.3
+}

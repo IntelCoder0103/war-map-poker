@@ -19,6 +19,8 @@ namespace WarPoker.Cards
     {
         static readonly Dictionary<string, Sprite> Loaded = new Dictionary<string, Sprite>();
 
+        static string ArtFolder { get { return ArtCatalog.Path("cards.art"); } }
+
         static Sprite Load(string path)
         {
             Sprite s;
@@ -31,27 +33,27 @@ namespace WarPoker.Cards
         /// <summary>True when the sprite came from Resources (real art) rather than the procedural fallback.</summary>
         public static bool HasCustomArt(string code)
         {
-            return Load("Cards/Art/" + code) != null || Load("Cards/Art/default") != null;
+            return Load(ArtFolder + "/" + code) != null || Load(ArtFolder + "/default") != null;
         }
 
         public static Sprite Main(CardCode card)
         {
-            var s = Load("Cards/Art/" + card.Code);
+            var s = Load(ArtFolder + "/" + card.Code);
             if (s != null) return s;
-            s = Load("Cards/Art/default");
+            s = Load(ArtFolder + "/default");
             if (s != null) return s;
             return Crest(card.Suit);
         }
 
         public static Sprite Back()
         {
-            var s = Load("Cards/back");
+            var s = Load(ArtCatalog.Path("cards.back"));
             return s != null ? s : ProceduralBack();
         }
 
         public static Sprite Suit(char suit)
         {
-            var s = Load("Cards/Suits/" + suit);
+            var s = Load(ArtCatalog.Path("cards.suits") + "/" + suit);
             return s != null ? s : ProceduralSuit(suit);
         }
 

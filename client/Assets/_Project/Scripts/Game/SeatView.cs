@@ -134,7 +134,7 @@ namespace WarPoker.Game
             // Dealer button and blind badge (top-left corner).
             _dealer = UIKit.Deco(c, "Dealer", ProcSprites.Disc(64, 0.14f), Color.white);
             UIKit.Center(_dealer.rectTransform, new Vector2(-136, 72), new Vector2(44, 44));
-            var dt = UIKit.Text(_dealer.transform, "D", "D", 24, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var dt = UIKit.Text(_dealer.transform, "D", Strings.Get("DealerMark"), 24, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(dt.rectTransform);
             _blind = UIKit.Deco(c, "Blind", ProcSprites.Disc(64, 0.14f), Theme.Gold);
             UIKit.Center(_blind.rectTransform, new Vector2(-138, 22), new Vector2(44, 44));
@@ -229,7 +229,7 @@ namespace WarPoker.Game
             _dealer.gameObject.SetActive(!waiting && s.dealerSeat == seatIndex);
             bool sb = !waiting && s.sbSeat == seatIndex, bb = !waiting && s.bbSeat == seatIndex;
             _blind.gameObject.SetActive(sb || bb);
-            _blindText.text = bb ? "BB" : "SB";
+            _blindText.text = Strings.Get(bb ? "BigBlindMark" : "SmallBlindMark");
             _readyBadge.gameObject.SetActive(waiting && seat.ready);
             _readyBadge.transform.localScale = Vector3.one;
 
@@ -297,17 +297,7 @@ namespace WarPoker.Game
 
         public static string ActionWord(string action)
         {
-            switch (action)
-            {
-                case "fold": return "FOLD";
-                case "check": return "CHECK";
-                case "call": return "CALL";
-                case "raise": return "RAISE";
-                case "allin": return "ALL-IN";
-                case "sb": return "SMALL BLIND";
-                case "bb": return "BIG BLIND";
-                default: return action.ToUpperInvariant();
-            }
+            return Strings.ActionWord(action);
         }
 
         /// <summary>Shows only the first n card slots (dealing animation reveals them one by one).</summary>

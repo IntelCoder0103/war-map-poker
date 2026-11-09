@@ -289,11 +289,6 @@ namespace WarPoker.Game
             if (_rankPanel != null) _rankPanel.gameObject.SetActive(false);
         }
 
-        static string Ordinal(int n)
-        {
-            if (n % 100 >= 11 && n % 100 <= 13) return n + "th";
-            switch (n % 10) { case 1: return n + "st"; case 2: return n + "nd"; case 3: return n + "rd"; default: return n + "th"; }
-        }
 
         static Vector2 BetSpot(Vector2 camp)
         {
@@ -344,7 +339,7 @@ namespace WarPoker.Game
             foreach (var s in _seats) s.Clear();
             foreach (var c in _boardCards) c.SetVisible(false);
             _potTroops.SetAmount(0);
-            _potText.text = Strings.PotLabel + "0";
+            _potText.text = Strings.Format("PotLabel", "0");
             _actions.Hide();
             _readyPanel.SetActive(false);
             _info.text = tableName;
@@ -512,15 +507,15 @@ namespace WarPoker.Game
             // Pot: only the total here; each player's soldiers stay at their own bet spot.
             _potRt.gameObject.SetActive(false);
             _potText.transform.parent.gameObject.SetActive(s.potTotal > 0);
-            _potText.text = Strings.PotLabel + UIKit.Num(s.potTotal);
+            _potText.text = Strings.Format("PotLabel", UIKit.Num(s.potTotal));
             if (s.phase != "showdown") HideRankBoard();
 
             if (!s.canShowCards) _showRequested = false;
             _showButton.gameObject.SetActive(s.canShowCards && !_showRequested);
 
             // Info
-            string info = (s.name ?? s.level ?? "") + "   Blinds " + UIKit.Num(s.smallBlind) + "/" + UIKit.Num(s.bigBlind);
-            if (s.handNumber > 0) info += "\n" + Strings.Hand + s.handNumber;
+            string info = Strings.Format("TableInfo", s.name ?? s.level ?? "", UIKit.Num(s.smallBlind), UIKit.Num(s.bigBlind));
+            if (s.handNumber > 0) info += "\n" + Strings.Format("Hand", s.handNumber);
             _info.text = info;
 
             RenderReady(s);
@@ -541,16 +536,15 @@ namespace WarPoker.Game
 
             _readyButton.gameObject.SetActive(!me.ready);
             _readyButton.interactable = true;
-            if (seated < 2) _readyInfo.text = "Waiting for more commanders to join (" + ready + "/" + seated + " ready)";
-            else _readyInfo.text = Strings.WaitingForOthers + " (" + ready + "/" + seated + " ready)";
+            _readyInfo.text = Strings.Format(seated < 2 ? "WaitingForPlayers" : "WaitingForOthers", ready, seated);
             if (s.readyDeadline > 0)
             {
                 long secs = System.Math.Max(0, (s.readyDeadline - ServerNow() + 999) / 1000);
                 _readyInfo.text = me.ready
-                    ? "Battle starts in " + secs + "s (" + ready + "/" + seated + " ready)"
-                    : "Press Ready within " + secs + "s or return to the barracks!";
+                    ? Strings.Format("BattleStartsIn", secs, ready, seated)
+                    : Strings.Format("PressReadyWithin", secs);
             }
-            if (seated < 2 && me.ready) _centerMsg.text = "Awaiting an opponent...";
+            if (seated < 2 && me.ready) _centerMsg.text = Strings.Get("AwaitingOpponent");
         }
 
         void RenderHighlights()
@@ -689,7 +683,7 @@ namespace WarPoker.Game
             _highlight.Clear();
             _handNames.Clear();
             Apply(e.state);
-            yield return _fx.FloatText(Center + new Vector2(0, 150), "The battle pauses - press Ready", Color.white, 34);
+            yield return _fx.FloatText(Center + new Vector2(0, 150), Strings.Get("BattlePauses"), Color.white, 34);
         }
 
         IEnumerator PlayDeal(TableEventMsg e)
@@ -763,14 +757,14 @@ namespace WarPoker.Game
                 var steps = new List<IEnumerator>
                 {
                     v.FoldAnim(this),
-                    _fx.FloatText(textPos, a.auto ? "FOLD (time)" : "FOLD", Theme.ParchmentLight)
+                    _fx.FloatText(textPos, Strings.Get(a.auto ? "Float.foldAuto" : "Float.fold"), Theme.ParchmentLight)
                 };
                 yield return Tween.Parallel(this, steps);
                 yield break;
             }
             if (a.type == "check")
             {
-                yield return _fx.FloatText(textPos, a.auto ? "CHECK (time)" : "CHECK", Theme.ParchmentLight);
+                yield return _fx.FloatText(textPos, Strings.Get(a.auto ? "Float.checkAuto" : "Float.check"), Theme.ParchmentLight);
                 yield break;
             }
 
@@ -778,11 +772,11 @@ namespace WarPoker.Game
             string label;
             switch (a.type)
             {
-                case "call": label = "CALL " + UIKit.Num(a.amount); break;
-                case "raise": label = "RAISE TO " + UIKit.Num(a.bet); break;
-                default: label = "ALL-IN " + UIKit.Num(a.bet); break;
+                case "call": label = Strings.Format("Float.call", UIKit.Num(a.amount)); break;
+                case "raise": label = Strings.Format("Float.raise", UIKit.Num(a.bet)); break;
+                default: label = Strings.Format("Float.allin", UIKit.Num(a.bet)); break;
             }
-            if (allIn) label = "ALL-IN " + UIKit.Num(a.bet) + "!";
+            if (allIn) label = Strings.Format("Float.allin", UIKit.Num(a.bet));
 
             var parallel = new List<IEnumerator>
             {
@@ -823,7 +817,7 @@ namespace WarPoker.Game
             if (d == null || d.reveals == null) yield break;
             foreach (var r in d.reveals)
                 if (r != null && !string.IsNullOrEmpty(r.handName))
-                    _handNames[r.seat] = r.rank > 0 ? Ordinal(r.rank) + "  " + r.handName : r.handName;
+                    _handNames[r.seat] = r.rank > 0 ? Strings.Format("RankedHand", Strings.Ordinal(r.rank), Strings.HandName(r.handName)) : Strings.HandName(r.handName);
             Apply(e.state);
 
             // 1) Opponents' cards flip; mine are already face up.
@@ -846,7 +840,7 @@ namespace WarPoker.Game
             foreach (var r in d.reveals) if (r != null) order.Add(r);
             order.Sort((x, y) => (x.rank <= 0 ? 99 : x.rank).CompareTo(y.rank <= 0 ? 99 : y.rank));
             yield return ShowRankBoard(order);
-            yield return Tween.Delay(1.6f);
+            yield return Tween.Delay(GameSettings.ShowdownHoldSeconds);
         }
 
         IEnumerator ShowRankBoard(List<Reveal> order)
@@ -868,9 +862,9 @@ namespace WarPoker.Game
                 row.Rect.gameObject.SetActive(true);
                 row.Rect.anchoredPosition = new Vector2(0, -78f - i * (RankRowH + RankRowGap) - RankRowH * 0.5f);
                 row.Bg.sprite = UISkin.Get(top ? "panel_gold" : "plank") ?? row.Bg.sprite;
-                row.Rank.text = r.rank > 0 ? Ordinal(r.rank) : "-";
+                row.Rank.text = r.rank > 0 ? Strings.Ordinal(r.rank) : "-";
                 row.Rank.color = top ? Theme.Crimson : Theme.GoldLight;
-                row.Name.text = seat != null ? seat.username : ("Seat " + r.seat);
+                row.Name.text = seat != null ? seat.username : Strings.Format("SeatFallback", r.seat);
                 row.Name.color = top ? Theme.Ink : Theme.ParchmentLight;
                 row.Hand.text = r.handName ?? "";
                 row.Hand.color = top ? Theme.CrimsonDark : Theme.GoldLight;
@@ -951,7 +945,7 @@ namespace WarPoker.Game
                 {
                     var wv = ViewFor(kv.Key);
                     if (wv == null) continue;
-                    steps.Add(_fx.MarchTroops(from, _fx.ToLocal(wv.Rect), bet / won.Count, 0.7f, 5));
+                    steps.Add(_fx.MarchTroops(from, _fx.ToLocal(wv.Rect), bet / won.Count, GameSettings.MarchSeconds, 5));
                 }
             }
             if (steps.Count > 0) yield return Tween.Parallel(this, steps);
@@ -966,7 +960,7 @@ namespace WarPoker.Game
                 if (wv == null) continue;
                 Vector2 camp = _fx.ToLocal(wv.Rect);
                 string line = "+" + UIKit.Num(kv.Value);
-                if (kv.Key == topSeat) after.Add(_fx.CrownAt(camp + new Vector2(0, 150), line, 1.3f));
+                if (kv.Key == topSeat) after.Add(_fx.CrownAt(camp + new Vector2(0, 150), line, GameSettings.WinnerCrownSeconds));
                 else after.Add(_fx.FloatText(camp + new Vector2(0, 110), line, Theme.GoldLight, 40));
                 after.Add(wv.Pop(wv.transform, 1.15f));
                 wv.PlaySquad("victory", TroopArt.VictoryFps); // the winner's troops cheer
@@ -981,7 +975,7 @@ namespace WarPoker.Game
             var v = ViewFor(d.seat);
             if (v == null) yield break;
             if (!v.IsMe) { v.ShowBacks(); yield return v.FlipCards(d.cards); }
-            yield return _fx.FloatText(_fx.ToLocal(v.Rect) + new Vector2(0, 100), Strings.Shows, Theme.GoldLight, 34);
+            yield return _fx.FloatText(_fx.ToLocal(v.Rect) + new Vector2(0, 100), Strings.Get("Float.shows"), Theme.GoldLight, 34);
         }
     }
 }

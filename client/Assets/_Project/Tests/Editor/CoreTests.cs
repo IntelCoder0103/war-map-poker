@@ -33,6 +33,34 @@ namespace WarPoker.Tests
         }
     }
 
+    public class StringsTests
+    {
+        [TearDown]
+        public void Reset() { Strings.Load(null); }
+
+        [Test]
+        public void DefaultsFormatsAndOverrides()
+        {
+            Assert.AreEqual("Buy-in 1,000", Strings.Format("BuyIn", "1,000"));
+            Strings.Load(new System.Collections.Generic.Dictionary<string, string> { { "BuyIn", "Entry: {0}" }, { "Ready", "Go!" } });
+            Assert.AreEqual("Entry: 50", Strings.Format("BuyIn", 50));
+            Assert.AreEqual("Go!", Strings.Ready);
+            Assert.AreEqual("Retreat", Strings.Leave); // not overridden -> default
+        }
+
+        [Test]
+        public void SafeFallbacks()
+        {
+            Assert.AreEqual("no.such.key", Strings.Get("no.such.key"));
+            Strings.Load(new System.Collections.Generic.Dictionary<string, string> { { "BuyIn", "Broken {0" } });
+            Assert.AreEqual("Broken {0", Strings.Format("BuyIn", 5)); // bad template shown as-is, no exception
+            Assert.AreEqual("Error: WEIRD_CODE", Strings.ErrorText("WEIRD_CODE"));
+            Assert.AreEqual("1st", Strings.Ordinal(1));
+            Assert.AreEqual("12th", Strings.Ordinal(12));
+            Assert.AreEqual("23rd", Strings.Ordinal(23));
+        }
+    }
+
     public class CardCodeTests
     {
         [Test]

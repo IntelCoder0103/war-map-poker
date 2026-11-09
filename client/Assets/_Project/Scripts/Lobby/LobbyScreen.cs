@@ -60,7 +60,7 @@ namespace WarPoker.Lobby
             AnchorCenter(icon.rectTransform, -110, 14, 56 * TroopArt.FrameScale, 56 * TroopArt.FrameScale);
             _balance = UIKit.Text(bar.transform, "Balance", "", 46, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
             AnchorCenter(_balance.rectTransform, 90, 12, 300, 60);
-            var balLabel = UIKit.Text(bar.transform, "BalanceLabel", "soldiers", 22, Theme.InkSoft, TextAnchor.MiddleLeft, FontStyle.Italic);
+            var balLabel = UIKit.Text(bar.transform, "BalanceLabel", Strings.SoldiersLabel, 22, Theme.InkSoft, TextAnchor.MiddleLeft, FontStyle.Italic);
             AnchorCenter(balLabel.rectTransform, 90, -26, 300, 30);
 
             _refill = UIKit.Button(bar.transform, "Refill", Strings.Refill, new Vector2(250, 64), Theme.Forest, Theme.ParchmentLight, 26, OnRefill);
@@ -152,9 +152,9 @@ namespace WarPoker.Lobby
                 var room = rooms[i];
                 row.Level = room.id;
                 row.Name.text = room.name;
-                row.BuyIn.text = Strings.BuyIn + UIKit.Num(room.buyIn);
-                row.Blinds.text = Strings.Blinds + UIKit.Num(room.smallBlind) + " / " + UIKit.Num(room.bigBlind);
-                row.Players.text = room.players + Strings.Players;
+                row.BuyIn.text = Strings.Format("BuyIn", UIKit.Num(room.buyIn));
+                row.Blinds.text = Strings.Format("Blinds", UIKit.Num(room.smallBlind), UIKit.Num(room.bigBlind));
+                row.Players.text = Strings.Format("Players", room.players);
                 var rt = (RectTransform)row.Button.transform;
                 UIKit.Place(rt, new Vector2(0.5f, 1f), new Vector2(0, -rowH * 0.5f - i * (rowH + gap)), new Vector2(1300, rowH));
                 row.Button.gameObject.SetActive(true);
@@ -229,8 +229,7 @@ namespace WarPoker.Lobby
                 string code = ack.Value<string>("error");
                 if (code == "INSUFFICIENT_BALANCE" && room != null && App.Session.User != null)
                 {
-                    _status.text = "You need " + UIKit.Num(room.buyIn) + " soldiers to march on " + room.name +
-                                   ". Your army: " + UIKit.Num(App.Session.User.balance) + ".";
+                    _status.text = Strings.Format("NeedSoldiers", UIKit.Num(room.buyIn), room.name, UIKit.Num(App.Session.User.balance));
                 }
                 else if (code == "ALREADY_SEATED")
                 {
@@ -253,7 +252,7 @@ namespace WarPoker.Lobby
                 if (r.Ok && r.Data != null && r.Data.user != null)
                 {
                     App.Session.SetUser(r.Data.user);
-                    _status.text = "Fresh recruits have arrived!";
+                    _status.text = Strings.Get("RefillArrived");
                 }
                 else
                 {
@@ -272,9 +271,9 @@ namespace WarPoker.Lobby
             bool available = user != null && RefillRule.IsAvailable(user.balance, user.nextRefillAt, now);
             _refill.interactable = available;
             if (user == null) _refillInfo.text = "";
-            else if (available) _refillInfo.text = "Top up to 1,000";
-            else if (user.balance >= RefillRule.Threshold) _refillInfo.text = Strings.RefillOnlyBelow;
-            else _refillInfo.text = Strings.RefillIn + RefillRule.FormatCountdown(RefillRule.MsUntilAvailable(user.balance, user.nextRefillAt, now));
+            else if (available) _refillInfo.text = Strings.Format("RefillAvailable", UIKit.Num(RefillRule.Threshold));
+            else if (user.balance >= RefillRule.Threshold) _refillInfo.text = Strings.Format("RefillOnlyBelow", UIKit.Num(RefillRule.Threshold));
+            else _refillInfo.text = Strings.Format("RefillIn", RefillRule.FormatCountdown(RefillRule.MsUntilAvailable(user.balance, user.nextRefillAt, now)));
 
             // Dim rooms we can't afford (still tappable: the server explains why).
             foreach (var row in _rows)

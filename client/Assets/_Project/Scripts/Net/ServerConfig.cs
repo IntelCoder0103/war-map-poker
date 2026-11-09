@@ -5,8 +5,8 @@ namespace WarPoker.Net
     /// <summary>
     /// Where the server lives. Default: Android emulator's alias for the host machine.
     /// The login screen lets you edit it; the value is kept in PlayerPrefs.
-    /// Optional override of the default: a TextAsset at Resources/config.json with
-    /// { "serverUrl": "http://192.168.1.20:3000" }.
+    /// The default comes from "serverUrl" in Resources/Config/game.json
+    /// (older builds used Resources/config.json, which is still read as a fallback).
     /// </summary>
     public static class ServerConfig
     {
@@ -23,9 +23,10 @@ namespace WarPoker.Net
         {
             get
             {
-                var asset = Resources.Load<TextAsset>("config");
-                if (asset != null)
+                foreach (var path in new[] { "Config/game", "config" })
                 {
+                    var asset = Resources.Load<TextAsset>(path);
+                    if (asset == null) continue;
                     try
                     {
                         var cfg = JsonUtility.FromJson<ConfigFile>(asset.text);
@@ -33,7 +34,7 @@ namespace WarPoker.Net
                     }
                     catch (System.Exception e)
                     {
-                        Debug.LogWarning("Resources/config.json is invalid: " + e.Message);
+                        Debug.LogWarning("Resources/" + path + ".json is invalid: " + e.Message);
                     }
                 }
 #if UNITY_EDITOR

@@ -11,7 +11,8 @@ namespace WarPoker.Core
     /// </summary>
     public static class TroopSquad
     {
-        public const int MaxFigures = 20;
+        /// <summary>Largest squad drawn (game.json "maxSquadFigures" can change it).</summary>
+        public static int MaxFigures = 20;
 
         /// <summary>How many soldier figures to draw (0 for amounts ≤ 0).</summary>
         public static int Figures(long amount, long unit)

@@ -1,0 +1,22 @@
+{
+  "_comment": "Game settings. Edit and restart the server. Leave out any line to use the built-in default. Secrets and ports stay in environment variables (PORT, MONGO_URL, JWT_SECRET). Times are in milliseconds. See docs/customizing.md.",
+
+  "startingBalance": 2000,
+  "refill": { "threshold": 1000, "topUpTo": 1000, "cooldownMs": 86400000 },
+
+  "maxSeats": 8,
+  "turnTimeMs": 20000,
+  "nextHandDelayMs": 4500,
+  "showdownDelayMs": 8000,
+  "disconnectGraceMs": 60000,
+  "idleTimeouts": 3,
+  "readyTimeoutMs": 30000,
+
+  "levels": [
+    { "id": "recruit", "name": "Recruit", "buyIn": 1000, "smallBlind": 10, "bigBlind": 20 },
+    { "id": "soldier", "name": "Soldier", "buyIn": 2000, "smallBlind": 20, "bigBlind": 40 },
+    { "id": "captain", "name": "Captain", "buyIn": 5000, "smallBlind": 50, "bigBlind": 100 },
+    { "id": "general", "name": "General", "buyIn": 10000, "smallBlind": 100, "bigBlind": 200 },
+    { "id": "king", "name": "King", "buyIn": 50000, "smallBlind": 500, "bigBlind": 1000 }
+  ]
+}

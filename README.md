@@ -15,3 +15,6 @@ npm install && npm start                       # server on :3000
 node tools/bots.js --count 3                   # optional: bots to play against
 ```
 Then open `client/` in Unity 2022.3 and follow client/README.md.
+
+## Customizing
+Wording, art, client settings and server game settings live in config files, so most changes need no code. See [docs/customizing.md](docs/customizing.md).

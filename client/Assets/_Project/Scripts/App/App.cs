@@ -54,6 +54,7 @@ namespace WarPoker.Main
                 return;
             }
             Instance = this;
+            GameSettings.Load(); // config files: wording, art catalog, display tuning (before any UI is built)
 
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;

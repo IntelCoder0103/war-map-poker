@@ -37,7 +37,7 @@ namespace WarPoker.Auth
             title.rectTransform.offsetMax = new Vector2(-150, -6);
             UIKit.Title(title, 2f);
             title.resizeTextForBestFit = true; title.resizeTextMaxSize = 54; title.resizeTextMinSize = 28;
-            var sub = UIKit.Text(p, "Subtitle", "Hold'em on the field of battle", 30, Theme.InkSoft, TextAnchor.MiddleCenter);
+            var sub = UIKit.Text(p, "Subtitle", Strings.Subtitle, 30, Theme.InkSoft, TextAnchor.MiddleCenter);
             UIKit.Center(sub.rectTransform, new Vector2(0, 278), new Vector2(700, 44));
 
             _user = UIKit.Input(p, "Username", Strings.Username, new Vector2(560, 80), false);
@@ -117,7 +117,7 @@ namespace WarPoker.Auth
             string pass = _pass.text;
             if (user.Length == 0 || pass.Length == 0)
             {
-                SetMessage("Enter a name and a password.", false);
+                SetMessage(Strings.Get("EnterNameAndPassword"), false);
                 return;
             }
             ServerConfig.Url = _server.text;

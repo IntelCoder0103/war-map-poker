@@ -75,3 +75,6 @@ Then join Recruit from the Unity app and press Ready.
 - Add rate limiting on `/auth/*`, for example with `express-rate-limit`.
 - **Node 16 has been end-of-life since Sept 2023 and gets no security fixes.** The code also runs on Node 18 and 20 (it's developed on 18 here). Moving to Node 20 is recommended.
 - There's one game process. Tables live in memory, so running several server instances would need sticky sessions plus a table-ownership scheme.
+
+## Customizing
+Wording, art, client settings and server game settings live in config files, so most changes need no code. See [docs/customizing.md](../docs/customizing.md).

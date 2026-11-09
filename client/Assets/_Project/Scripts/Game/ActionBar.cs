@@ -72,7 +72,7 @@ namespace WarPoker.Game
             UIKit.Center((RectTransform)_half.transform, new Vector2(-166, -34), q);
             _pot = UIKit.Button(p, "Pot", Strings.Pot, q, Theme.ParchmentDark, Theme.Ink, 24, () => SetPotFraction(1.0));
             UIKit.Center((RectTransform)_pot.transform, new Vector2(-32, -34), q);
-            _confirm = UIKit.Button(p, "Confirm", Strings.RaiseTo, new Vector2(300, 58), Theme.Gold, Theme.ParchmentLight, 26, ConfirmRaise);
+            _confirm = UIKit.Button(p, "Confirm", Strings.Format("RaiseTo", ""), new Vector2(300, 58), Theme.Gold, Theme.ParchmentLight, 26, ConfirmRaise);
             UIKit.Center((RectTransform)_confirm.transform, new Vector2(210, -34), new Vector2(300, 58));
             _confirmLabel = UIKit.ButtonLabel(_confirm);
 
@@ -112,7 +112,7 @@ namespace WarPoker.Game
             else if (legal.canCall)
             {
                 _checkCall.gameObject.SetActive(true);
-                _checkCallLabel.text = Strings.Call + UIKit.Num(legal.callAmount);
+                _checkCallLabel.text = Strings.Format("Call", UIKit.Num(legal.callAmount));
             }
             else
             {
@@ -183,7 +183,7 @@ namespace WarPoker.Game
             if (_legal == null) return;
             long v = RaiseAmount;
             _value.text = UIKit.Num(v);
-            _confirmLabel.text = v >= _legal.maxRaiseTo ? Strings.RaiseTo + UIKit.Num(v) + " (all)" : Strings.RaiseTo + UIKit.Num(v);
+            _confirmLabel.text = Strings.Format(v >= _legal.maxRaiseTo ? "RaiseToAll" : "RaiseTo", UIKit.Num(v));
         }
 
         void ConfirmRaise()

@@ -75,7 +75,7 @@ namespace WarPoker.Game
 
         public static Sprite Background()
         {
-            var custom = Resources.Load<Sprite>("Map/background");
+            var custom = Resources.Load<Sprite>(ArtCatalog.Path("map.background"));
             if (custom != null) return custom;
             Sprite cached;
             if (ProcSprites.TryGet("map_bg_green", out cached)) return cached;
@@ -954,7 +954,7 @@ namespace WarPoker.Game
         /// <summary>A bagua medallion: gold rim, red ring with gold trigrams, yin-yang in the middle.</summary>
         public static Sprite Compass()
         {
-            var custom = Resources.Load<Sprite>("Map/compass");
+            var custom = Resources.Load<Sprite>(ArtCatalog.Path("map.compass"));
             if (custom != null) return custom;
             return ProcSprites.FromFn("compass_bagua_v2", 192, 192, CompassPixel, 2);
         }

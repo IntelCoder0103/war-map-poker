@@ -18,7 +18,7 @@ namespace WarPoker.UI
         {
             get
             {
-                if (_font == null) _font = Resources.Load<Font>("Fonts/LilitaOne");
+                if (_font == null) _font = Resources.Load<Font>(ArtCatalog.Path("fonts.body"));
                 if (_font == null) _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 return _font;
             }
@@ -29,7 +29,7 @@ namespace WarPoker.UI
         {
             get
             {
-                if (_titleFont == null) _titleFont = Resources.Load<Font>("Fonts/PottaOne");
+                if (_titleFont == null) _titleFont = Resources.Load<Font>(ArtCatalog.Path("fonts.title"));
                 return _titleFont != null ? _titleFont : Font;
             }
         }

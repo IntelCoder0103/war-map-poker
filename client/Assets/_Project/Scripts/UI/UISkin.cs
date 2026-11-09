@@ -4,32 +4,14 @@ using UnityEngine;
 namespace WarPoker.UI
 {
     /// <summary>
-    /// Sprites from the UI kit in Resources/UI (pzUH "Free Fantasy Game GUI" + "Medieval Game Button
-    /// Pack", CC0). Each sprite gets its 9-slice border here, so panels and buttons stretch cleanly.
+    /// Sprites from the UI kit (pzUH "Free Fantasy Game GUI" + "Medieval Game Button Pack", CC0).
+    /// Paths and 9-slice borders come from ArtCatalog (Resources/Config/art.json), so pieces can be
+    /// swapped without code changes.
     /// Returns null when a file is missing; callers then fall back to procedural sprites.
     /// </summary>
     public static class UISkin
     {
         public enum ButtonColor { Red, Green, Gold, Blue, Wood }
-
-        // name -> border (left, bottom, right, top) in source pixels
-        static readonly Dictionary<string, Vector4> Borders = new Dictionary<string, Vector4>
-        {
-            { "btn_red", new Vector4(46, 44, 46, 44) }, { "btn_red_pressed", new Vector4(46, 44, 46, 44) },
-            { "btn_green", new Vector4(46, 44, 46, 44) }, { "btn_green_pressed", new Vector4(46, 44, 46, 44) },
-            { "btn_gold", new Vector4(46, 44, 46, 44) }, { "btn_gold_pressed", new Vector4(46, 44, 46, 44) },
-            { "btn_blue", new Vector4(46, 44, 46, 44) }, { "btn_blue_pressed", new Vector4(46, 44, 46, 44) },
-            { "btn_disabled", new Vector4(46, 44, 46, 44) },
-            { "btn_wood", new Vector4(30, 30, 30, 30) }, { "btn_wood_pressed", new Vector4(30, 30, 30, 30) },
-            { "btn_wood_disabled", new Vector4(30, 30, 30, 30) },
-            { "panel_window", new Vector4(110, 110, 110, 110) },
-            { "panel_wide", new Vector4(80, 80, 80, 80) },
-            { "panel_gold", new Vector4(14, 14, 14, 14) },
-            { "plank", new Vector4(24, 24, 24, 24) },
-            { "ribbon", new Vector4(150, 0, 150, 0) },
-            { "bar_frame", new Vector4(92, 24, 24, 24) },
-            { "bar_fill", new Vector4(12, 12, 12, 12) },
-        };
 
         static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
 
@@ -37,9 +19,10 @@ namespace WarPoker.UI
         {
             Sprite s;
             if (Cache.TryGetValue(name, out s)) return s;
-            var src = Resources.Load<Sprite>("UI/" + name);
-            Vector4 border;
-            if (src != null && Borders.TryGetValue(name, out border))
+            var piece = ArtCatalog.SkinPiece(name); // path + 9-slice border, see Resources/Config/art.json
+            var src = Resources.Load<Sprite>(piece.Path);
+            Vector4 border = piece.Border;
+            if (src != null && border != Vector4.zero)
             {
                 s = Sprite.Create(src.texture, src.rect, new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
                 s.name = name;

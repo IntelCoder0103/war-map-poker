@@ -1,0 +1,264 @@
+{
+  "fonts": {
+    "body": "Fonts/LilitaOne",
+    "title": "Fonts/PottaOne"
+  },
+  "skin": {
+    "btn_red": {
+      "path": "UI/btn_red",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_red_pressed": {
+      "path": "UI/btn_red_pressed",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_green": {
+      "path": "UI/btn_green",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_green_pressed": {
+      "path": "UI/btn_green_pressed",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_gold": {
+      "path": "UI/btn_gold",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_gold_pressed": {
+      "path": "UI/btn_gold_pressed",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_blue": {
+      "path": "UI/btn_blue",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_blue_pressed": {
+      "path": "UI/btn_blue_pressed",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_disabled": {
+      "path": "UI/btn_disabled",
+      "border": [
+        46.0,
+        44.0,
+        46.0,
+        44.0
+      ]
+    },
+    "btn_wood": {
+      "path": "UI/btn_wood",
+      "border": [
+        30.0,
+        30.0,
+        30.0,
+        30.0
+      ]
+    },
+    "btn_wood_pressed": {
+      "path": "UI/btn_wood_pressed",
+      "border": [
+        30.0,
+        30.0,
+        30.0,
+        30.0
+      ]
+    },
+    "btn_wood_disabled": {
+      "path": "UI/btn_wood_disabled",
+      "border": [
+        30.0,
+        30.0,
+        30.0,
+        30.0
+      ]
+    },
+    "panel_window": {
+      "path": "UI/panel_window",
+      "border": [
+        110.0,
+        110.0,
+        110.0,
+        110.0
+      ]
+    },
+    "panel_wide": {
+      "path": "UI/panel_wide",
+      "border": [
+        80.0,
+        80.0,
+        80.0,
+        80.0
+      ]
+    },
+    "panel_gold": {
+      "path": "UI/panel_gold",
+      "border": [
+        14.0,
+        14.0,
+        14.0,
+        14.0
+      ]
+    },
+    "plank": {
+      "path": "UI/plank",
+      "border": [
+        24.0,
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    "ribbon": {
+      "path": "UI/ribbon",
+      "border": [
+        150.0,
+        0.0,
+        150.0,
+        0.0
+      ]
+    },
+    "bar_frame": {
+      "path": "UI/bar_frame",
+      "border": [
+        92.0,
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    "bar_fill": {
+      "path": "UI/bar_fill",
+      "border": [
+        12.0,
+        12.0,
+        12.0,
+        12.0
+      ]
+    },
+    "round_gold": {
+      "path": "UI/round_gold",
+      "border": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "round_wood": {
+      "path": "UI/round_wood",
+      "border": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "crown": {
+      "path": "UI/crown",
+      "border": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "sunburst": {
+      "path": "UI/sunburst",
+      "border": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "star": {
+      "path": "UI/star",
+      "border": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "coin": {
+      "path": "UI/coin",
+      "border": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "soldier": {
+    "icon": "Troops/soldier",
+    "frameScale": 2.0,
+    "clips": {
+      "idle": {
+        "path": "Troops/soldier_idle",
+        "fps": 11.0
+      },
+      "walk": {
+        "path": "Troops/soldier_walk",
+        "fps": 12.0
+      },
+      "victory": {
+        "path": "Troops/soldier_victory",
+        "fps": 9.0
+      },
+      "death": {
+        "path": "Troops/soldier_death",
+        "fps": 14.0
+      }
+    }
+  },
+  "map": {
+    "background": "Map/background",
+    "compass": "Map/compass"
+  },
+  "cards": {
+    "art": "Cards/Art",
+    "back": "Cards/back",
+    "suits": "Cards/Suits"
+  }
+}

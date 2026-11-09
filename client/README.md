@@ -98,3 +98,6 @@ as a squad of 1–5 identical figures, one more per digit (1–9 → 1, 10–99 
 - No `CardArtSet` ScriptableObject asset (can't be authored without the Editor): art is found by the Resources naming
   convention above.
 - Bets of the current street are shown at a "bet spot" in front of each camp; on `street` they march into the pot.
+
+## Customizing
+Wording, art, client settings and server game settings live in config files, so most changes need no code. See [docs/customizing.md](../docs/customizing.md).
