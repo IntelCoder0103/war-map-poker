@@ -8,30 +8,28 @@ namespace WarPoker.Tests
         [Test]
         public void ZeroOrNegativeGivesNoFigures()
         {
-            Assert.AreEqual(0, TroopSquad.Figures(0));
-            Assert.AreEqual(0, TroopSquad.Figures(-5));
+            Assert.AreEqual(0, TroopSquad.Figures(0, 20));
+            Assert.AreEqual(0, TroopSquad.Figures(-5, 20));
         }
 
         [Test]
-        public void OneMoreFigurePerDigitUpToFive()
+        public void GrowsWithSquareRootOfBigBlinds()
         {
-            Assert.AreEqual(1, TroopSquad.Figures(1));
-            Assert.AreEqual(1, TroopSquad.Figures(9));
-            Assert.AreEqual(2, TroopSquad.Figures(10));
-            Assert.AreEqual(2, TroopSquad.Figures(99));
-            Assert.AreEqual(3, TroopSquad.Figures(100));
-            Assert.AreEqual(4, TroopSquad.Figures(1000));
-            Assert.AreEqual(4, TroopSquad.Figures(9999));
-            Assert.AreEqual(5, TroopSquad.Figures(10000));
-            Assert.AreEqual(5, TroopSquad.Figures(123456789));
+            Assert.AreEqual(1, TroopSquad.Figures(5, 20));     // less than a big blind still shows one
+            Assert.AreEqual(1, TroopSquad.Figures(20, 20));    // 1 BB
+            Assert.AreEqual(2, TroopSquad.Figures(80, 20));    // 4 BB
+            Assert.AreEqual(3, TroopSquad.Figures(100, 20));   // 5 BB -> ceil(2.24)
+            Assert.AreEqual(8, TroopSquad.Figures(1000, 20));  // 50 BB -> ceil(7.07)
+            Assert.AreEqual(8, TroopSquad.Figures(500000, 10000)); // same depth, King room
         }
 
         [Test]
-        public void MarchFiguresAreCapped()
+        public void CappedAndSafeWithBadUnit()
         {
-            Assert.AreEqual(3, TroopSquad.MarchFigures(30020, 3));
-            Assert.AreEqual(2, TroopSquad.MarchFigures(20, 5));
-            Assert.AreEqual(0, TroopSquad.MarchFigures(0, 5));
+            Assert.AreEqual(TroopSquad.MaxFigures, TroopSquad.Figures(100000000, 20));
+            Assert.AreEqual(3, TroopSquad.Figures(9, 0));      // unit 0 is treated as 1
+            Assert.AreEqual(4, TroopSquad.MarchFigures(1000, 20, 4));
+            Assert.AreEqual(0, TroopSquad.MarchFigures(0, 20, 4));
         }
     }
 

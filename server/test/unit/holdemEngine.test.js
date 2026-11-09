@@ -103,6 +103,22 @@ describe('showdown', () => {
     expect(awards[1]).toMatchObject({ amount: 400, winners: [{ seat: 1, amount: 400 }], handName: 'Pair' });
     expect(h.stacks()).toEqual({ 0: 300, 1: 400, 2: 700 });
     expect(last(ev, 'showdown').data.reveals.map((r) => r.seat)).toEqual([1, 2, 0]);
+    // every revealed hand gets a rank: AA (seat 0) and KK (seat 2) both hit trips, QJ (seat 1) a pair
+    const ranks = Object.fromEntries(last(ev, 'showdown').data.reveals.map((r) => [r.seat, r.rank]));
+    expect(Object.values(ranks).sort()).toEqual([1, 2, 3]);
+    expect(h.hadShowdown).toBe(true);
+  });
+
+  test('a fold win records the winner, and players carry their hand total', () => {
+    const h = hand({ 0: 1000, 1: 1000, 2: 1000 });
+    h.start();
+    const ev = h.act(0, 'raise', 60);
+    expect(last(ev, 'action').state.players.find((p) => p.seat === 0).committed).toBe(60);
+    h.act(1, 'fold');
+    h.act(2, 'fold');
+    expect(h.isComplete).toBe(true);
+    expect(h.foldWinner).toBe(0);
+    expect(h.hadShowdown).toBeUndefined();
   });
 
   test('split pot gives the odd soldier to the winner closest to the dealer\'s left', () => {

@@ -7,18 +7,21 @@ using WarPoker.UI;
 namespace WarPoker.Troops
 {
     /// <summary>
-    /// Draws an amount as a small squad of identical soldiers (1-5 figures, more for bigger
-    /// amounts, see TroopSquad). The exact number is shown by the caller next to it.
-    /// Children are pooled and reused.
+    /// Draws an amount as a squad of identical soldiers: the count grows with sqrt(amount / big blind)
+    /// (see TroopSquad), arranged in staggered ranks that fit the view's rect. The exact number is
+    /// shown by the caller next to it. Children are pooled and reused.
     /// </summary>
     public class TroopStackView : MonoBehaviour
     {
-        public float IconSize = 30f;
-        public Color LabelColor = Theme.Ink; // kept for callers; the squad has no label of its own
+        /// <summary>The table's big blind: one "unit" for squad sizing. Set by the game screen.</summary>
+        public static long Unit = 20;
+
+        public float IconSize = 30f;            // the largest a figure may be drawn
+        public Color LabelColor = Theme.Ink;    // kept for callers; the squad has no label of its own
 
         RectTransform _rt;
         readonly List<Image> _icons = new List<Image>();
-        long _amount = -1;
+        long _amount = -1, _unit = -1;
 
         public long Amount { get { return _amount; } }
 
@@ -34,9 +37,10 @@ namespace WarPoker.Troops
 
         public void SetAmount(long amount)
         {
-            if (amount == _amount) return;
+            if (amount == _amount && Unit == _unit) return;
             _amount = amount;
-            Draw(TroopSquad.Figures(amount));
+            _unit = Unit;
+            Draw(TroopSquad.Figures(amount, Unit));
         }
 
         /// <summary>Shows a fixed number of figures (e.g. lobby room badges), ignoring amounts.</summary>
@@ -55,22 +59,39 @@ namespace WarPoker.Troops
         void Draw(int n)
         {
             if (_rt == null) _rt = (RectTransform)transform;
-            // a loose rank: figures overlap a little, alternate rows give depth
-            float step = IconSize * 0.55f;
-            float total = n > 0 ? IconSize + (n - 1) * step : 0f;
-            float x = -total * 0.5f;
-            Sprite sprite = TroopArt.Soldier();
-            for (int i = 0; i < n; i++)
-            {
-                var img = Icon(i);
-                img.sprite = sprite;
-                var irt = img.rectTransform;
-                irt.anchoredPosition = new Vector2(x + IconSize * 0.5f + i * step, i % 2 == 0 ? 0f : IconSize * 0.08f);
-                irt.sizeDelta = new Vector2(IconSize, IconSize);
-                // odd figures stand a step behind
-                if (i % 2 == 1) irt.SetAsFirstSibling(); else irt.SetAsLastSibling();
-            }
             for (int i = n; i < _icons.Count; i++) _icons[i].gameObject.SetActive(false);
+            if (n <= 0) return;
+
+            // Ranks: up to 6 per front rank, 2-3 ranks deep, each rank behind a bit higher and offset.
+            Vector2 area = _rt.rect.size;
+            if (area.x < 1f || area.y < 1f) area = _rt.sizeDelta;
+            int perRank = Mathf.Min(n, n <= 6 ? 6 : Mathf.CeilToInt(n / 3f));
+            int ranks = Mathf.CeilToInt(n / (float)perRank);
+            const float stepK = 0.5f, rankK = 0.3f;
+            float widthUnits = 1f + (perRank - 1) * stepK + (ranks > 1 ? stepK * 0.5f : 0f);
+            float heightUnits = 1f + (ranks - 1) * rankK;
+            float size = Mathf.Min(IconSize, area.x / widthUnits, area.y * 1.25f / heightUnits);
+            float step = size * stepK, rankStep = size * rankK;
+
+            Sprite sprite = TroopArt.Soldier();
+            int index = 0;
+            // back ranks first so the front rank is drawn on top
+            for (int r = ranks - 1; r >= 0; r--)
+            {
+                int inRank = r == ranks - 1 ? n - perRank * (ranks - 1) : perRank;
+                float rowW = size + (inRank - 1) * step;
+                float x0 = -rowW * 0.5f + size * 0.5f + (r % 2 == 1 ? step * 0.5f : 0f);
+                float y = -(heightUnits * size) * 0.5f + size * 0.5f + r * rankStep;
+                for (int i = 0; i < inRank; i++)
+                {
+                    var img = Icon(index++);
+                    img.sprite = sprite;
+                    var irt = img.rectTransform;
+                    irt.anchoredPosition = new Vector2(x0 + i * step, y);
+                    irt.sizeDelta = new Vector2(size, size);
+                    irt.SetAsLastSibling();
+                }
+            }
         }
 
         Image Icon(int index)

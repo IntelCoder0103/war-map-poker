@@ -22,6 +22,7 @@ class Table {
     this.turnTimer = null;
     this.turnDeadline = 0;
     this.nextHandTimer = null;
+    this.showable = null; // { seat, userId, cards } — a winner by fold may show their cards until the next hand
   }
 
   // ---------- queries ----------
@@ -154,6 +155,7 @@ class Table {
           seat, userId: s.userId, username: s.username,
           stack: p ? p.stack : s.stack,
           bet: p ? p.bet : 0,
+          totalBet: p ? p.committed : 0,
           inHand: !!p,
           folded: p ? p.folded : false,
           allIn: p ? p.allIn : false,
@@ -164,7 +166,19 @@ class Table {
         };
       }),
       legal,
+      canShowCards: !!(this.showable && this.showable.userId === userId && this.showable.seat === yourSeat),
     };
+  }
+
+  // A player who won because everyone else folded may reveal their hole cards before the next hand.
+  showCards(userId) {
+    const seat = this._requireSeat(userId);
+    const sh = this.showable;
+    if (!sh || sh.userId !== userId || sh.seat !== seat || this.hand || !this.handState) throw new GameError('CANNOT_SHOW');
+    this.showable = null;
+    const hs = this.handState;
+    this.handState = { ...hs, players: hs.players.map((p) => (p.seat === seat ? { ...p, cards: sh.cards.slice() } : p)) };
+    this._broadcast('cardsShown', { seat, cards: sh.cards.slice() });
   }
 
   // ---------- hand loop ----------
@@ -198,6 +212,7 @@ class Table {
       deck: shuffledDeck(),
       handNumber: this.handNumber,
     });
+    this.showable = null;
     const events = this.hand.start(); // deals the cards
     this.handCards = {};
     this.handSeatUsers = {};
@@ -211,6 +226,11 @@ class Table {
   // Send engine events out one by one, then arm the turn timer or wrap up the hand.
   _process(events) {
     this._clearTurnTimer();
+    // A fold win can be shown: set it before the last events go out, so their snapshots say so.
+    const h = this.hand;
+    if (h && h.isComplete && h.foldWinner !== undefined && this.seats[h.foldWinner] && !this.seats[h.foldWinner].ghost) {
+      this.showable = { seat: h.foldWinner, userId: this.seats[h.foldWinner].userId, cards: h.cardsOf(h.foldWinner) };
+    }
     for (const e of events) {
       if (e.type === 'turn') {
         this.turnDeadline = Date.now() + this.settings.turnTimeMs;
@@ -239,8 +259,10 @@ class Table {
   }
 
   _finishHand() {
-    const stacks = this.hand.stacks();
+    const hand = this.hand;
+    const stacks = hand.stacks();
     this.hand = null;
+    const delay = hand.hadShowdown ? this.settings.showdownDelayMs ?? this.settings.nextHandDelayMs : this.settings.nextHandDelayMs;
     this.turnDeadline = 0;
 
     const toSave = [];
@@ -261,7 +283,7 @@ class Table {
     this.nextHandTimer = setTimeout(() => {
       this.nextHandTimer = null;
       this._maybeStartHand();
-    }, this.settings.nextHandDelayMs);
+    }, delay);
 
     for (let seat = 0; seat < this.seats.length; seat++) {
       const s = this.seats[seat];
@@ -281,6 +303,7 @@ class Table {
 
   _backToWaiting() {
     this.started = false;
+    this.showable = null;
     this.handState = null;
     this.handCards = {};
     this.handSeatUsers = {};

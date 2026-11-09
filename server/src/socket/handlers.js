@@ -74,6 +74,7 @@ function attachSockets(io, manager, log) {
       const u = await seatedTable().leave(user.userId, 'left');
       return { balance: u ? u.balance : null };
     });
+    on('table:show', () => seatedTable().showCards(user.userId));
     on('table:sync', () => {
       socket.emit('table:state', seatedTable().snapshotFor(user.userId));
     });

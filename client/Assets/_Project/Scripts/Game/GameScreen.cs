@@ -38,8 +38,23 @@ namespace WarPoker.Game
         Text _potText, _info, _centerMsg, _readyInfo;
         RectTransform _potRt, _deckRt;
         ActionBar _actions;
-        Button _readyButton;
+        Button _readyButton, _showButton;
         GameObject _readyPanel;
+        bool _showRequested;
+
+        // Showdown ranking board
+        CanvasGroup _rankGroup;
+        RectTransform _rankPanel;
+        readonly List<RankRow> _rankRows = new List<RankRow>();
+
+        class RankRow
+        {
+            public RectTransform Rect;
+            public Image Bg;
+            public Text Rank, Name, Hand;
+            public CardView[] Cards;
+            public CanvasGroup Group;
+        }
 
         Snapshot _state;
         long _lastSeq = -1;
@@ -65,11 +80,8 @@ namespace WarPoker.Game
             UIKit.Center(_board, Vector2.zero, new Vector2(1920, 1080));
             _board.gameObject.AddComponent<FitInside>();
 
-            var compass = UIKit.Deco(_board, "Compass", MapArt.Compass(), new Color(1, 1, 1, 0.85f));
-            UIKit.Center(compass.rectTransform, new Vector2(-820, -415), new Vector2(150, 150));
-
             // Battlefield: a faint ring drawn around the centre.
-            var field = UIKit.Deco(_board, "Battlefield", ProcSprites.Glow(128), new Color(0.10f, 0.09f, 0.08f, 0.16f));
+            var field = UIKit.Deco(_board, "Battlefield", ProcSprites.Glow(128), new Color(1f, 1f, 1f, 0.10f));
             UIKit.Center(field.rectTransform, Center + new Vector2(0, -10), new Vector2(900, 420));
 
             // Seats around an ellipse; display slot 0 (me) at bottom centre.
@@ -87,7 +99,7 @@ namespace WarPoker.Game
             for (int i = 0; i < 5; i++)
             {
                 Vector2 pos = Center + new Vector2(10 + (i - 2) * 106f, 10);
-                var slot = UIKit.Deco(_board, "Slot" + i, ProcSprites.RoundedRect(10, 3, 0.4f), new Color(0.3f, 0.2f, 0.1f, 0.18f));
+                var slot = UIKit.Deco(_board, "Slot" + i, ProcSprites.RoundedRect(10, 3, 0.4f), new Color(1f, 1f, 1f, 0.22f));
                 UIKit.Center(slot.rectTransform, pos, BoardCardSize);
                 _boardSlots[i] = slot;
                 var card = CardView.Create(_board, "Board" + i, BoardCardSize);
@@ -105,7 +117,7 @@ namespace WarPoker.Game
                 c.Rect.anchoredPosition = new Vector2(-i * 2f, i * 2f);
             }
 
-            // Pot army + number.
+            // Pot total. The soldiers themselves stay in front of each player until the hand ends.
             _potRt = UIKit.Rect("Pot", _board);
             UIKit.Center(_potRt, PotPos, new Vector2(260, 52));
             _potTroops = TroopStackView.Create(_potRt, "Army", new Vector2(260, 52), 48f);
@@ -121,21 +133,31 @@ namespace WarPoker.Game
             // Top-left: retreat + table info.
             var leave = UIKit.Button(_board, "Leave", Strings.Leave, new Vector2(190, 64), Theme.Leather, Theme.ParchmentLight, 28, OnLeave);
             UIKit.Center((RectTransform)leave.transform, new Vector2(-835, 490), new Vector2(190, 64));
-            _info = UIKit.Text(_board, "Info", "", 24, Theme.Ink, TextAnchor.UpperLeft, FontStyle.Bold);
+            _info = UIKit.Text(_board, "Info", "", 24, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
+            UIKit.AddOutline(_info, 2f);
             UIKit.Center(_info.rectTransform, new Vector2(-700, 420), new Vector2(460, 60));
 
-            _centerMsg = UIKit.Text(_board, "CenterMessage", "", 40, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _centerMsg = UIKit.Text(_board, "CenterMessage", "", 40, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.AddOutline(_centerMsg, 3f);
             UIKit.Center(_centerMsg.rectTransform, Center + new Vector2(0, 150), new Vector2(900, 60));
 
             // Ready panel (waiting phase), same area as the action bar.
             var rp = UIKit.Rect("ReadyPanel", _board);
             UIKit.Center(rp, ActionBarPos + new Vector2(0, 30), new Vector2(780, 160));
             _readyPanel = rp.gameObject;
-            _readyInfo = UIKit.Text(rp, "Info", "", 26, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _readyInfo = UIKit.Text(rp, "Info", "", 26, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.AddOutline(_readyInfo, 2f);
             UIKit.Center(_readyInfo.rectTransform, new Vector2(0, 52), new Vector2(780, 40));
             _readyButton = UIKit.Button(rp, "Ready", Strings.Ready, new Vector2(440, 110), Theme.Forest, Theme.GoldLight, 46, OnReady);
             UIKit.Center((RectTransform)_readyButton.transform, new Vector2(0, -20), new Vector2(440, 96));
             _readyPanel.SetActive(false);
+
+            // A winner by fold may show their cards (like other poker apps); hidden otherwise.
+            _showButton = UIKit.Button(_board, "ShowCards", Strings.ShowCards, new Vector2(250, 86), Theme.Gold, Theme.ParchmentLight, 32, OnShowCards);
+            UIKit.Center((RectTransform)_showButton.transform, new Vector2(300, -360), new Vector2(250, 86));
+            _showButton.gameObject.SetActive(false);
+
+            BuildRankBoard();
 
             _actions = ActionBar.Create(_board, ActionBarPos);
             _actions.OnAction = SendAction;
@@ -144,6 +166,72 @@ namespace WarPoker.Game
         }
 
         /// <summary>Bet spot: just outside the camp, on the line toward the pot.</summary>
+        const float RankRowH = 72f, RankRowGap = 8f, RankW = 820f;
+
+        void BuildRankBoard()
+        {
+            var panel = UIKit.Panel(_board, "RankBoard", "panel_window", Color.white, 0.55f);
+            _rankPanel = panel.rectTransform;
+            UIKit.Center(_rankPanel, Center + new Vector2(0, 20), new Vector2(RankW, 300));
+            _rankGroup = UIKit.Group(panel.gameObject);
+            _rankGroup.blocksRaycasts = false;
+            var ribbon = UIKit.Panel(_rankPanel, "Ribbon", "ribbon", Color.white, 0.7f, true);
+            ribbon.rectTransform.anchorMin = ribbon.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+            ribbon.rectTransform.anchoredPosition = new Vector2(0, 6);
+            ribbon.rectTransform.sizeDelta = new Vector2(520, 96);
+            var title = UIKit.Text(ribbon.transform, "Title", Strings.Showdown, 40, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Stretch(title.rectTransform);
+            title.rectTransform.offsetMin = new Vector2(110, 8);
+            title.rectTransform.offsetMax = new Vector2(-110, -4);
+            UIKit.Title(title, 2f);
+            panel.gameObject.SetActive(false);
+        }
+
+        RankRow GetRankRow(int i)
+        {
+            while (_rankRows.Count <= i)
+            {
+                var row = new RankRow();
+                var bg = UIKit.Panel(_rankPanel, "Row" + _rankRows.Count, "plank", Color.white, 0.6f, true);
+                row.Bg = bg;
+                row.Rect = bg.rectTransform;
+                row.Rect.anchorMin = row.Rect.anchorMax = new Vector2(0.5f, 1f);
+                row.Rect.sizeDelta = new Vector2(RankW - 70f, RankRowH);
+                row.Group = UIKit.Group(bg.gameObject);
+                row.Rank = UIKit.Text(bg.transform, "Rank", "", 36, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UIKit.Place(row.Rank.rectTransform, new Vector2(0, 0.5f), new Vector2(50, 0), new Vector2(80, RankRowH));
+                UIKit.AddOutline(row.Rank, 2f);
+                row.Name = UIKit.Text(bg.transform, "Name", "", 30, Theme.ParchmentLight, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UIKit.Place(row.Name.rectTransform, new Vector2(0, 0.5f), new Vector2(190, 0), new Vector2(190, RankRowH));
+                row.Name.horizontalOverflow = HorizontalWrapMode.Overflow;
+                row.Hand = UIKit.Text(bg.transform, "Hand", "", 28, Theme.GoldLight, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UIKit.Place(row.Hand.rectTransform, new Vector2(0, 0.5f), new Vector2(390, 0), new Vector2(210, RankRowH));
+                row.Hand.horizontalOverflow = HorizontalWrapMode.Overflow;
+                row.Cards = new CardView[5];
+                var cardSize = new Vector2(42, 58);
+                for (int c = 0; c < 5; c++)
+                {
+                    var card = CardView.Create(bg.transform, "Card" + c, cardSize);
+                    card.Rect.anchorMin = card.Rect.anchorMax = new Vector2(1f, 0.5f);
+                    card.Rect.anchoredPosition = new Vector2(-254 + c * 46, 0);
+                    row.Cards[c] = card;
+                }
+                _rankRows.Add(row);
+            }
+            return _rankRows[i];
+        }
+
+        void HideRankBoard()
+        {
+            if (_rankPanel != null) _rankPanel.gameObject.SetActive(false);
+        }
+
+        static string Ordinal(int n)
+        {
+            if (n % 100 >= 11 && n % 100 <= 13) return n + "th";
+            switch (n % 10) { case 1: return n + "st"; case 2: return n + "nd"; case 3: return n + "rd"; default: return n + "th"; }
+        }
+
         static Vector2 BetSpot(Vector2 camp)
         {
             Vector2 dir = (Center - camp);
@@ -255,7 +343,8 @@ namespace WarPoker.Game
             while (_queue.Count > 0)
             {
                 var e = _queue.Dequeue();
-                int backlog = _queue.Count;
+                int backlog = 0;
+                foreach (var q in _queue) if (Animates(q.type)) backlog++;
                 // Never fall behind: speed up when events pile up, skip animations when far behind.
                 Tween.Speed = backlog >= 5 ? 3f : (backlog >= 2 ? 1.7f : 1f);
                 _stepStarted = Time.unscaledTime;
@@ -272,10 +361,15 @@ namespace WarPoker.Game
             _runner = null;
         }
 
+        static bool Animates(string type)
+        {
+            return type != "turn" && type != "connection" && type != "handEnded";
+        }
+
         void Update()
         {
             // Safety net: if an animation ever got stuck (or threw), drop it and catch up.
-            if (_runner != null && Time.unscaledTime - _stepStarted > 6f)
+            if (_runner != null && Time.unscaledTime - _stepStarted > 10f)
             {
                 Debug.LogWarning("[game] animation stuck; catching up");
                 Snapshot last = _playingState;
@@ -293,6 +387,7 @@ namespace WarPoker.Game
             _runner = null;
             Tween.Speed = 1f;
             if (_fx != null) _fx.Clear();
+            HideRankBoard();
             if (_board != null) _board.anchoredPosition = Vector2.zero;
         }
 
@@ -309,6 +404,7 @@ namespace WarPoker.Game
         {
             if (s == null) return;
             _state = s;
+            if (s.bigBlind > 0) TroopStackView.Unit = s.bigBlind;
             int max = Mathf.Clamp(s.maxSeats, 1, MaxSeats);
             _centerMsg.text = "";
 
@@ -339,10 +435,14 @@ namespace WarPoker.Game
                 }
             }
 
-            // Pot: troops show what's gathered; the label shows the total incl. current bets.
-            _potRt.gameObject.SetActive(true);
-            _potTroops.SetAmount(s.GatheredPot);
+            // Pot: only the total here; each player's soldiers stay at their own bet spot.
+            _potRt.gameObject.SetActive(false);
+            _potText.transform.parent.gameObject.SetActive(s.potTotal > 0);
             _potText.text = Strings.PotLabel + UIKit.Num(s.potTotal);
+            if (s.phase != "showdown") HideRankBoard();
+
+            if (!s.canShowCards) _showRequested = false;
+            _showButton.gameObject.SetActive(s.canShowCards && !_showRequested);
 
             // Info
             string info = (s.name ?? s.level ?? "") + "   Blinds " + UIKit.Num(s.smallBlind) + "/" + UIKit.Num(s.bigBlind);
@@ -391,6 +491,16 @@ namespace WarPoker.Game
                     _readyButton.interactable = true;
                     App.Toast(Strings.ErrorText(ack.Value<string>("error")));
                 }
+            });
+        }
+
+        void OnShowCards()
+        {
+            _showRequested = true;
+            _showButton.gameObject.SetActive(false);
+            App.Socket.Request("table:show", new JObject(), ack =>
+            {
+                if (!ack.Value<bool>("ok")) App.Toast(Strings.ErrorText(ack.Value<string>("error")));
             });
         }
 
@@ -451,6 +561,7 @@ namespace WarPoker.Game
                 case "street": return PlayStreet(e);
                 case "showdown": return PlayShowdown(e);
                 case "potAwarded": return PlayAwards(e);
+                case "cardsShown": return PlayCardsShown(e);
                 case "waiting": return PlayWaiting(e);
                 default: return null; // turn, connection, handEnded: the snapshot says it all
             }
@@ -497,7 +608,7 @@ namespace WarPoker.Game
             _highlight.Clear();
             _handNames.Clear();
             Apply(e.state);
-            yield return _fx.FloatText(Center + new Vector2(0, 150), "The battle pauses - press Ready", Theme.Ink, 34);
+            yield return _fx.FloatText(Center + new Vector2(0, 150), "The battle pauses - press Ready", Color.white, 34);
         }
 
         IEnumerator PlayDeal(TableEventMsg e)
@@ -611,20 +722,8 @@ namespace WarPoker.Game
         {
             var d = Data<StreetData>(e);
 
-            // 1) This street's bets march into the pot.
-            var gather = new List<IEnumerator>();
-            Vector2 pot = _fx.ToLocal(_potRt);
-            foreach (var v in _seats)
-            {
-                long bet = v.DisplayedBet;
-                if (bet <= 0) continue;
-                Vector2 from = _fx.ToLocal(v.BetRect);
-                v.HideBet();
-                gather.Add(_fx.MarchTroops(from, pot, bet, 0.4f, 3));
-            }
-            if (gather.Count > 0) yield return Tween.Parallel(this, gather);
-
-            // 2) New board cards flip over one by one.
+            // Bets stay where they are (in front of each player) until the hand ends.
+            // New board cards flip over one by one.
             Apply(e.state);
             int boardCount = e.state.board != null ? e.state.board.Count : 0;
             int newCount = d != null && d.newCards != null ? d.newCards.Count : 0;
@@ -642,10 +741,11 @@ namespace WarPoker.Game
             var d = Data<ShowdownData>(e);
             if (d == null || d.reveals == null) yield break;
             foreach (var r in d.reveals)
-                if (r != null && !string.IsNullOrEmpty(r.handName)) _handNames[r.seat] = r.handName;
+                if (r != null && !string.IsNullOrEmpty(r.handName))
+                    _handNames[r.seat] = r.rank > 0 ? Ordinal(r.rank) + "  " + r.handName : r.handName;
             Apply(e.state);
 
-            // Opponents' cards flip; mine are already face up.
+            // 1) Opponents' cards flip; mine are already face up.
             var steps = new List<IEnumerator>();
             float delay = 0f;
             foreach (var r in d.reveals)
@@ -655,53 +755,139 @@ namespace WarPoker.Game
                 if (v == null || v.IsMe) continue;
                 v.ShowBacks();
                 steps.Add(Tween.Sequence(Tween.Delay(delay), v.FlipCards(r.cards)));
-                delay += 0.25f;
+                delay += 0.2f;
             }
             yield return Tween.Parallel(this, steps);
             yield return Tween.Delay(0.4f);
+
+            // 2) Ranking board: every hand, best first, with its best five cards.
+            var order = new List<Reveal>();
+            foreach (var r in d.reveals) if (r != null) order.Add(r);
+            order.Sort((x, y) => (x.rank <= 0 ? 99 : x.rank).CompareTo(y.rank <= 0 ? 99 : y.rank));
+            yield return ShowRankBoard(order);
+            yield return Tween.Delay(1.6f);
+        }
+
+        IEnumerator ShowRankBoard(List<Reveal> order)
+        {
+            if (order.Count == 0) yield break;
+            float h = 92f + order.Count * (RankRowH + RankRowGap) + 20f;
+            _rankPanel.sizeDelta = new Vector2(RankW, h);
+            _rankPanel.gameObject.SetActive(true);
+            _rankPanel.SetAsLastSibling();
+            _rankGroup.alpha = 1f;
+            for (int i = 0; i < _rankRows.Count; i++) _rankRows[i].Rect.gameObject.SetActive(false);
+
+            for (int i = 0; i < order.Count; i++)
+            {
+                var r = order[i];
+                var row = GetRankRow(i);
+                bool top = r.rank == 1;
+                var seat = _state != null ? _state.Seat(r.seat) : null;
+                row.Rect.gameObject.SetActive(true);
+                row.Rect.anchoredPosition = new Vector2(0, -78f - i * (RankRowH + RankRowGap) - RankRowH * 0.5f);
+                row.Bg.sprite = UISkin.Get(top ? "panel_gold" : "plank") ?? row.Bg.sprite;
+                row.Rank.text = r.rank > 0 ? Ordinal(r.rank) : "-";
+                row.Rank.color = top ? Theme.Crimson : Theme.GoldLight;
+                row.Name.text = seat != null ? seat.username : ("Seat " + r.seat);
+                row.Name.color = top ? Theme.Ink : Theme.ParchmentLight;
+                row.Hand.text = r.handName ?? "";
+                row.Hand.color = top ? Theme.CrimsonDark : Theme.GoldLight;
+                var best = r.bestCards != null && r.bestCards.Count > 0 ? r.bestCards : r.cards;
+                for (int c = 0; c < 5; c++)
+                {
+                    var card = row.Cards[c];
+                    bool has = best != null && c < best.Count;
+                    card.SetVisible(has);
+                    if (!has) continue;
+                    card.ResetVisual();
+                    card.SetCard(best[c], true);
+                    // the player's own hole cards light up inside their best five
+                    card.SetHighlight(r.cards != null && r.cards.Contains(best[c]));
+                }
+                row.Group.alpha = 0f;
+                row.Rect.localScale = Vector3.one * 0.9f;
+                yield return Tween.Parallel(this, new List<IEnumerator>
+                {
+                    Tween.Fade(row.Group, 1f, 0.22f),
+                    Tween.Scale(row.Rect, Vector3.one, 0.22f, Ease.OutBack)
+                });
+                yield return Tween.Delay(0.12f);
+            }
         }
 
         IEnumerator PlayAwards(TableEventMsg e)
         {
             var d = Data<PotAwardedData>(e);
             if (d == null || d.awards == null || d.awards.Count == 0) yield break;
-            Vector2 pot = _fx.ToLocal(_potRt);
 
-            // Light up the best cards of all awards.
+            // The ranking board makes room for the battlefield.
+            if (_rankPanel.gameObject.activeSelf)
+            {
+                yield return Tween.Fade(_rankGroup, 0f, 0.3f);
+                HideRankBoard();
+            }
+
+            // Light up the winning cards.
             foreach (var award in d.awards)
                 if (award != null && award.bestCards != null) _highlight.UnionWith(award.bestCards);
             RenderHighlights();
 
-            // The pot army marches to each winner while the victory banner shows.
-            var steps = new List<IEnumerator>();
-            _potRt.gameObject.SetActive(false);
+            // What each winner takes, in total.
+            var won = new Dictionary<int, long>();
             foreach (var award in d.awards)
             {
                 if (award == null || award.winners == null) continue;
                 foreach (var w in award.winners)
                 {
-                    var v = ViewFor(w.seat);
-                    if (v != null) steps.Add(_fx.MarchTroops(pot, _fx.ToLocal(v.Rect), w.amount, 0.6f, 6));
+                    long t; won.TryGetValue(w.seat, out t);
+                    won[w.seat] = t + w.amount;
                 }
             }
+            if (won.Count == 0) yield break;
 
-            var main = d.awards[0];
-            if (main != null && main.winners != null && main.winners.Count > 0)
+            // Every player's soldiers march from their bet spot to the winner(s).
+            var steps = new List<IEnumerator>();
+            foreach (var v in _seats)
             {
-                var names = new List<string>();
-                long total = 0;
-                foreach (var w in main.winners)
+                long bet = v.DisplayedBet;
+                if (bet <= 0) continue;
+                Vector2 from = _fx.ToLocal(v.BetRect);
+                v.HideBet();
+                foreach (var kv in won)
                 {
-                    var seat = _state != null ? _state.Seat(w.seat) : null;
-                    names.Add(seat != null ? seat.username : ("Seat " + w.seat));
-                    total += w.amount;
+                    var wv = ViewFor(kv.Key);
+                    if (wv == null) continue;
+                    steps.Add(_fx.MarchTroops(from, _fx.ToLocal(wv.Rect), bet / won.Count, 0.7f, 5));
                 }
-                string how = string.IsNullOrEmpty(main.handName) ? Strings.Uncontested : main.handName;
-                string line = string.Join(" & ", names.ToArray()) + "  -  " + how + "  (+" + UIKit.Num(total) + ")";
-                steps.Add(_fx.Victory(line, 1.1f));
             }
-            yield return Tween.Parallel(this, steps);
-            _potRt.gameObject.SetActive(true);
+            if (steps.Count > 0) yield return Tween.Parallel(this, steps);
+
+            // A crown over the biggest winner, "+N" over any others.
+            int topSeat = -1; long topAmount = -1;
+            foreach (var kv in won) if (kv.Value > topAmount) { topAmount = kv.Value; topSeat = kv.Key; }
+            var after = new List<IEnumerator>();
+            foreach (var kv in won)
+            {
+                var wv = ViewFor(kv.Key);
+                if (wv == null) continue;
+                Vector2 camp = _fx.ToLocal(wv.Rect);
+                string line = "+" + UIKit.Num(kv.Value);
+                if (kv.Key == topSeat) after.Add(_fx.CrownAt(camp + new Vector2(0, 150), line, 1.3f));
+                else after.Add(_fx.FloatText(camp + new Vector2(0, 110), line, Theme.GoldLight, 40));
+                after.Add(wv.Pop(wv.transform, 1.15f));
+            }
+            yield return Tween.Parallel(this, after);
+        }
+
+        IEnumerator PlayCardsShown(TableEventMsg e)
+        {
+            var d = Data<CardsShownData>(e);
+            if (d == null || d.cards == null || d.cards.Count < 2) yield break;
+            var v = ViewFor(d.seat);
+            if (v == null) yield break;
+            if (!v.IsMe) { v.ShowBacks(); yield return v.FlipCards(d.cards); }
+            yield return _fx.FloatText(_fx.ToLocal(v.Rect) + new Vector2(0, 100), Strings.Shows, Theme.GoldLight, 34);
         }
     }
 }

@@ -71,8 +71,9 @@ namespace WarPoker.Game
             UIKit.Center(_glow.rectTransform, Vector2.zero, CampSize + new Vector2(90, 90));
             _glow.enabled = false;
 
-            _empty = UIKit.Text(transform, "Empty", Strings.OpenCamp, 24, new Color(Theme.Ink.r, Theme.Ink.g, Theme.Ink.b, 0.45f),
+            _empty = UIKit.Text(transform, "Empty", Strings.OpenCamp, 24, new Color(1f, 1f, 1f, 0.75f),
                 TextAnchor.MiddleCenter, FontStyle.Italic);
+            UIKit.AddOutline(_empty, 1.5f, 0.5f);
             UIKit.Center(_empty.rectTransform, Vector2.zero, CampSize);
 
             _content = UIKit.Rect("Content", transform).gameObject;
@@ -281,14 +282,16 @@ namespace WarPoker.Game
                 _tag.color = Theme.ParchmentLight;
             }
 
-            // Bet spot
-            bool hasBet = seat.bet > 0 && !waiting;
+            // Bet spot: everything this player put in during the hand stays in front of them
+            // until the pot is paid out (older servers only send this street's bet).
+            long committed = seat.totalBet > 0 ? seat.totalBet : seat.bet;
+            bool hasBet = committed > 0 && !waiting && seat.inHand;
             BetRect.gameObject.SetActive(hasBet);
-            _betGroup.alpha = 1f;
+            _betGroup.alpha = folded ? 0.55f : 1f;
             if (hasBet)
             {
-                _betTroops.SetAmount(seat.bet);
-                _betText.text = UIKit.Num(seat.bet);
+                _betTroops.SetAmount(committed);
+                _betText.text = UIKit.Num(committed);
             }
         }
 

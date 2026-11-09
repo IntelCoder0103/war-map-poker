@@ -63,6 +63,7 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 | `table:ready` | `{}` | `{ ok }` | Error: `NOT_SEATED` |
 | `table:action` | `{ type, amount? }` | `{ ok }` | `type`: `fold`, `check`, `call`, `raise`, `allin`. For `raise`, `amount` is the total bet to raise *to* this street. Errors: `NOT_YOUR_TURN`, `ILLEGAL_ACTION`, `BAD_AMOUNT` |
 | `table:leave` | `{}` | `{ ok, balance }` | Your stack goes back to your balance. If you're in a hand, you fold first. |
+| `table:show` | `{}` | `{ ok }` | Only for the player who just won because everyone else folded, until the next hand starts (`canShowCards` in the snapshot). Reveals their hole cards to the table. Error: `CANNOT_SHOW` |
 | `table:sync` | `{}` | `{ ok }` | The server sends a fresh `table:state` |
 
 ### Server → client
@@ -98,6 +99,7 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
   "seats": [                    // always 8 entries; null = empty seat
     { "seat": 0, "userId": "…", "username": "bob", "stack": 960,
       "bet": 40,                // committed on this street
+      "totalBet": 120,          // committed in this whole hand (blinds + every street); 0 once the pot is paid out
       "inHand": true,           // dealt into the current hand
       "folded": false, "allIn": false,
       "ready": true,            // pressed Ready (matters during the waiting phase)
@@ -105,6 +107,7 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
       "lastAction": "raise",    // fold|check|call|raise|allin|sb|bb|null; resets each street
       "cards": null }           // revealed cards at showdown, otherwise null
   ],
+  "canShowCards": false,        // true right after you won by everyone folding: offer a "Show cards" button (table:show)
   "legal": null                 // filled in only when it's your turn:
   // { "canFold": true, "canCheck": false, "canCall": true, "callAmount": 20,
   //   "canRaise": true, "canAllIn": true, "minRaiseTo": 80, "maxRaiseTo": 1000 }
@@ -128,10 +131,11 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 | `turn` | `{ seat, deadline }` |
 | `action` | `{ seat, type, amount, bet, stack, allIn, auto }`. `amount` is the soldiers added by this action (troops march to the pot). `auto` is true when the action came from a timeout. |
 | `street` | `{ phase, newCards: [...], board: [...] }`. Bets have been gathered into `pots` (animate the troops merging into the pot). |
-| `showdown` | `{ reveals: [ { seat, cards, handName } ] }` |
+| `showdown` | `{ reveals: [ { seat, cards, handName, bestCards, rank } ] }`. `rank` orders the hands best first (1 = best); tied hands share a rank (1, 1, 3). |
 | `potAwarded` | `{ awards: [ { amount, winners: [ { seat, amount } ], handName, bestCards: [...] } ] }`. `handName` is `null` and `bestCards` is `[]` when everyone else folded. |
 | `waiting` | `{}`. The table went back to the `waiting` phase: fewer than 2 players with soldiers are left, and everyone's `ready` was reset. Show the Ready button again. |
-| `handEnded` | `{ handNumber }`. The next hand starts after about 4 seconds if 2 or more ready players with soldiers remain. Otherwise the table goes back to `waiting`. |
+| `handEnded` | `{ handNumber }`. The next hand starts after about 8 seconds after a showdown, or 4.5 seconds when everyone folded, if 2 or more players with soldiers remain. Otherwise the table goes back to `waiting`. |
+| `cardsShown` | `{ seat, cards }`. A fold winner chose to show their hole cards; `state.seats[seat].cards` now holds them. |
 
 ### Table flow
 1. **Join:** `room:join` seats you at the first table of that level with a free seat. If every table is full, a new one opens. Your buy-in moves from your balance to your stack.

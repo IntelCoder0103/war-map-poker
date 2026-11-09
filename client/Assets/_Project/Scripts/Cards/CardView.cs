@@ -8,8 +8,9 @@ using WarPoker.UI;
 namespace WarPoker.Cards
 {
     /// <summary>
-    /// A playing card built from code: white rounded body, a narrow left strip with the rank
-    /// above the suit icon, and a large main art area. Art comes from <see cref="CardArt"/>.
+    /// A playing card built from code, in a clean modern style: soft drop shadow, white rounded body,
+    /// a narrow left strip with a bold rank above the suit pip, and a large main art area.
+    /// Art comes from <see cref="CardArt"/>.
     /// </summary>
     public class CardView : MonoBehaviour
     {
@@ -18,9 +19,10 @@ namespace WarPoker.Cards
         public bool FaceUp { get; private set; }
 
         CanvasGroup _group;
-        Image _highlight, _body, _suit, _art, _back, _dim;
+        Image _highlight, _shadow, _body, _suit, _art, _back, _dim;
         Text _rank;
         RectTransform _face;
+        int _rankSize, _rankSizeTen;
 
         public static CardView Create(Transform parent, string name, Vector2 size)
         {
@@ -43,38 +45,57 @@ namespace WarPoker.Cards
             UIKit.Center(_highlight.rectTransform, Vector2.zero, size + new Vector2(40, 40));
             _highlight.enabled = false;
 
-            int radius = Mathf.Clamp(Mathf.RoundToInt(w * 0.12f), 4, 14);
-            _body = UIKit.Deco(transform, "Body", ProcSprites.RoundedRect(radius, 2, 0.35f), Color.white);
+            // Corner radius in UI units; the 9-sliced sprites have a 36 px radius, so scale them to fit.
+            float radius = Mathf.Max(3f, w * 0.09f);
+            float ppu = 36f / radius;
+
+            // Soft drop shadow, a little below the card.
+            _shadow = UIKit.Deco(transform, "Shadow", CardArt.Shadow(), new Color(0f, 0f, 0f, 0.5f));
+            _shadow.type = Image.Type.Sliced;
+            _shadow.pixelsPerUnitMultiplier = ppu;
+            float blur = 24f / ppu;
+            var sh = _shadow.rectTransform;
+            UIKit.Stretch(sh);
+            Vector2 drop = new Vector2(w * 0.015f, -h * 0.03f);
+            sh.offsetMin = new Vector2(-blur, -blur) + drop;
+            sh.offsetMax = new Vector2(blur, blur) + drop;
+
+            _body = UIKit.Deco(transform, "Body", CardArt.Body(), Color.white);
+            _body.type = Image.Type.Sliced;
+            _body.pixelsPerUnitMultiplier = ppu;
             UIKit.Stretch(_body.rectTransform);
             _face = _body.rectTransform;
 
-            // Left strip: rank on top, suit icon below.
-            float stripW = Mathf.Max(14f, w * 0.27f);
+            // Left strip: rank on top, suit pip below.
+            float pad = Mathf.Max(2f, w * 0.035f);
+            float stripW = Mathf.Max(14f, w * 0.28f);
             var strip = UIKit.Rect("Strip", _face);
             strip.anchorMin = new Vector2(0, 0);
             strip.anchorMax = new Vector2(0, 1);
             strip.pivot = new Vector2(0, 0.5f);
-            strip.offsetMin = new Vector2(3, 3);
-            strip.offsetMax = new Vector2(3 + stripW, -3);
+            strip.offsetMin = new Vector2(pad * 0.6f, pad);
+            strip.offsetMax = new Vector2(pad * 0.6f + stripW, -pad * 0.5f);
 
-            int fontSize = Mathf.Max(10, Mathf.RoundToInt(Mathf.Min(h * 0.2f, stripW * 1.05f)));
-            _rank = UIKit.Text(strip, "Rank", "", fontSize, Theme.CardBlack, TextAnchor.UpperCenter, FontStyle.Bold);
+            _rankSize = Mathf.Max(10, Mathf.RoundToInt(Mathf.Min(h * 0.22f, stripW * 1.15f)));
+            _rankSizeTen = Mathf.Max(9, Mathf.RoundToInt(_rankSize * 0.8f));
+            _rank = UIKit.Text(strip, "Rank", "", _rankSize, Theme.CardBlack, TextAnchor.UpperCenter, FontStyle.Bold);
             _rank.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _rank.verticalOverflow = VerticalWrapMode.Overflow;
             var rrt = _rank.rectTransform;
             rrt.anchorMin = new Vector2(0, 1);
             rrt.anchorMax = new Vector2(1, 1);
             rrt.pivot = new Vector2(0.5f, 1f);
-            rrt.anchoredPosition = new Vector2(0, -1);
-            rrt.sizeDelta = new Vector2(0, fontSize * 1.15f);
+            rrt.anchoredPosition = new Vector2(0, 0);
+            rrt.sizeDelta = new Vector2(0, _rankSize * 1.1f);
 
-            float suitSize = stripW * 0.85f;
+            float suitSize = stripW * 0.80f;
             _suit = UIKit.Deco(strip, "Suit", null, Theme.CardBlack);
             _suit.preserveAspect = true;
             var srt = _suit.rectTransform;
             srt.anchorMin = new Vector2(0.5f, 1);
             srt.anchorMax = new Vector2(0.5f, 1);
             srt.pivot = new Vector2(0.5f, 1f);
-            srt.anchoredPosition = new Vector2(0, -fontSize * 1.2f - 2f);
+            srt.anchoredPosition = new Vector2(0, -_rankSize * 1.02f);
             srt.sizeDelta = new Vector2(suitSize, suitSize);
 
             // Main art area: everything right of the strip.
@@ -83,13 +104,15 @@ namespace WarPoker.Cards
             var art = _art.rectTransform;
             art.anchorMin = Vector2.zero;
             art.anchorMax = Vector2.one;
-            art.offsetMin = new Vector2(stripW + 5, 5);
-            art.offsetMax = new Vector2(-5, -5);
+            art.offsetMin = new Vector2(pad * 0.6f + stripW + pad * 0.4f, pad);
+            art.offsetMax = new Vector2(-pad, -pad);
 
             _back = UIKit.Deco(transform, "Back", CardArt.Back(), Color.white);
             UIKit.Stretch(_back.rectTransform);
 
-            _dim = UIKit.Deco(transform, "Dim", ProcSprites.RoundedRect(radius, 0, 0.5f), new Color(0, 0, 0, 0.45f));
+            _dim = UIKit.Deco(transform, "Dim", CardArt.Body(), new Color(0, 0, 0, 0.45f));
+            _dim.type = Image.Type.Sliced;
+            _dim.pixelsPerUnitMultiplier = ppu;
             UIKit.Stretch(_dim.rectTransform);
             _dim.enabled = false;
 
@@ -109,6 +132,7 @@ namespace WarPoker.Cards
             Code = card.Code;
             Color ink = CardArt.SuitColor(card.Suit);
             _rank.text = card.RankLabel;
+            _rank.fontSize = card.RankLabel.Length > 1 ? _rankSizeTen : _rankSize;
             _rank.color = ink;
             _suit.sprite = CardArt.Suit(card.Suit);
             _suit.color = ink;

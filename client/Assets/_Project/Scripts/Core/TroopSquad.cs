@@ -1,27 +1,34 @@
+using System;
+
 namespace WarPoker.Core
 {
     /// <summary>
-    /// There is one soldier type. An amount is drawn as a small squad of identical soldiers next to
-    /// the number: 1-9 → 1 figure, 10-99 → 2, 100-999 → 3, 1,000-9,999 → 4, 10,000+ → 5.
+    /// There is one soldier type. An amount is drawn as a squad of identical soldiers whose size
+    /// grows with the square root of the amount, measured in big blinds:
+    /// figures = ceil(sqrt(amount / bigBlind)), between 1 and MaxFigures.
+    /// E.g. at blinds 10/20: a 20 bet → 1, 80 → 2, 1,000 (50 BB) → 8, 8,000 (400 BB) → 20.
+    /// The same stack in big blinds looks the same in every room.
     /// </summary>
     public static class TroopSquad
     {
-        public const int MaxFigures = 5;
+        public const int MaxFigures = 20;
 
-        /// <summary>How many soldier figures to draw for an amount (0 for amounts ≤ 0).</summary>
-        public static int Figures(long amount)
+        /// <summary>How many soldier figures to draw (0 for amounts ≤ 0).</summary>
+        public static int Figures(long amount, long unit)
         {
             if (amount <= 0) return 0;
-            int n = 1;
-            for (long v = amount; v >= 10 && n < MaxFigures; v /= 10) n++;
-            return n;
+            if (unit <= 0) unit = 1;
+            double n = Math.Ceiling(Math.Sqrt((double)amount / unit) - 1e-9);
+            if (n < 1) n = 1;
+            return n > MaxFigures ? MaxFigures : (int)n;
         }
 
         /// <summary>Figures for a marching animation, capped at maxFigures.</summary>
-        public static int MarchFigures(long amount, int maxFigures)
+        public static int MarchFigures(long amount, long unit, int maxFigures)
         {
-            int n = Figures(amount);
-            return n < maxFigures ? n : (maxFigures < 0 ? 0 : maxFigures);
+            int n = Figures(amount, unit);
+            if (maxFigures < 0) maxFigures = 0;
+            return n < maxFigures ? n : maxFigures;
         }
     }
 }

@@ -35,7 +35,8 @@ async function startServer(overrides = {}) {
     levels: cfg.levels,
     settings: {
       maxSeats: cfg.maxSeats, turnTimeMs: cfg.turnTimeMs,
-      nextHandDelayMs: cfg.nextHandDelayMs, disconnectGraceMs: cfg.disconnectGraceMs,
+      nextHandDelayMs: cfg.nextHandDelayMs,
+      showdownDelayMs: cfg.showdownDelayMs ?? cfg.nextHandDelayMs, disconnectGraceMs: cfg.disconnectGraceMs,
     },
     hooks: {
       wallet,

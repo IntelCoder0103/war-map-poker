@@ -1,4 +1,4 @@
-const { evaluate, findWinners } = require('../../src/game/handEval');
+const { evaluate, findWinners, rankHands } = require('../../src/game/handEval');
 
 test('names hands and returns best five cards in our format', () => {
   const r = evaluate(['Ah', 'Kh', 'Qh', 'Jh', 'Th', '2c', '3d']);
@@ -28,4 +28,19 @@ test('ties produce several winners', () => {
     { seat: 4, cards: ['4c', '5d', ...board] },
   ]);
   expect(winners.sort()).toEqual([0, 4]);
+});
+
+test('rankHands orders every hand and shares ranks on ties', () => {
+  const board = ['2h', '7h', '9h', '8c', 'Td'];
+  const r = rankHands([
+    { seat: 0, cards: ['Jc', '6s', ...board] }, // straight
+    { seat: 1, cards: ['Ah', '3h', ...board] }, // flush
+    { seat: 2, cards: ['Js', '6d', ...board] }, // same straight
+    { seat: 3, cards: ['Kc', '4d', ...board] }, // king high
+  ]);
+  expect(r.get(1).rank).toBe(1);
+  expect(r.get(0).rank).toBe(2);
+  expect(r.get(2).rank).toBe(2);
+  expect(r.get(3).rank).toBe(4);
+  expect(r.get(1).evaluation.handName).toBe('Flush');
 });

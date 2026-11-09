@@ -26,7 +26,8 @@ namespace WarPoker.FX
         Image _flash;
         RectTransform _banner;
         CanvasGroup _bannerGroup;
-        Text _bannerTitle, _bannerLine;
+        Text _bannerLine;
+        Image _rays;
 
         public static FxLayer Create(RectTransform parent, MonoBehaviour host)
         {
@@ -44,40 +45,23 @@ namespace WarPoker.FX
             UIKit.Center(_flash.rectTransform, Vector2.zero, new Vector2(5000, 5000));
             _flash.gameObject.SetActive(false);
 
-            _banner = UIKit.Rect("VictoryBanner", transform);
-            UIKit.Center(_banner, new Vector2(0, 40), new Vector2(980, 230));
+            // Winner marker: rays + crown that pop over the winner's camp, with the soldiers won below.
+            _banner = UIKit.Rect("WinnerCrown", transform);
+            UIKit.Center(_banner, Vector2.zero, new Vector2(300, 220));
             _bannerGroup = UIKit.Group(_banner.gameObject);
             _bannerGroup.blocksRaycasts = false;
-            if (UISkin.Available)
-            {
-                // Kit pieces: light rays behind, a crown on top, the title on a ribbon.
-                var rays = UIKit.Deco(_banner, "Rays", UISkin.Get("sunburst"), new Color(1f, 1f, 1f, 0.9f));
-                rays.preserveAspect = true;
-                UIKit.Center(rays.rectTransform, new Vector2(0, 150), new Vector2(900, 452));
-                var ribbon = UIKit.Panel(_banner, "Ribbon", "ribbon", Color.white, 0.8f, true);
-                UIKit.Center(ribbon.rectTransform, new Vector2(0, 30), new Vector2(1000, 170));
-                var crown = UIKit.Deco(_banner, "Crown", UISkin.Get("crown"), Color.white);
-                crown.preserveAspect = true;
-                UIKit.Center(crown.rectTransform, new Vector2(0, 160), new Vector2(200, 139));
-                _bannerTitle = UIKit.Text(_banner, "Title", Strings.Victory, 76, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UIKit.Center(_bannerTitle.rectTransform, new Vector2(0, 36), new Vector2(560, 120));
-                UIKit.Title(_bannerTitle, 3f);
-                _bannerTitle.resizeTextForBestFit = true; _bannerTitle.resizeTextMaxSize = 76; _bannerTitle.resizeTextMinSize = 36;
-                _bannerLine = UIKit.Text(_banner, "Line", "", 38, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UIKit.Center(_bannerLine.rectTransform, new Vector2(0, -90), new Vector2(1100, 60));
-                UIKit.AddOutline(_bannerLine, 3f);
-            }
-            else
-            {
-                var bannerImg = _banner.gameObject.AddComponent<Image>();
-                bannerImg.sprite = ProcSprites.RoundedRect(18, 5, 0.5f); bannerImg.type = Image.Type.Sliced;
-                bannerImg.color = Theme.Crimson; bannerImg.raycastTarget = false;
-                _bannerTitle = UIKit.Text(_banner, "Title", Strings.Victory, 86, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UIKit.Center(_bannerTitle.rectTransform, new Vector2(0, 38), new Vector2(940, 110));
-                UIKit.AddShadow(_bannerTitle, 3f, 0.6f);
-                _bannerLine = UIKit.Text(_banner, "Line", "", 34, Theme.ParchmentLight, TextAnchor.MiddleCenter, FontStyle.Bold);
-                UIKit.Center(_bannerLine.rectTransform, new Vector2(0, -58), new Vector2(940, 60));
-            }
+            _rays = UIKit.Deco(_banner, "Rays", UISkin.Get("sunburst"), new Color(1f, 1f, 1f, 0.85f));
+            _rays.preserveAspect = true;
+            UIKit.Center(_rays.rectTransform, new Vector2(0, 40), new Vector2(420, 211));
+            if (_rays.sprite == null) _rays.enabled = false;
+            var crown = UIKit.Deco(_banner, "Crown", UISkin.Get("crown"), Color.white);
+            crown.preserveAspect = true;
+            UIKit.Center(crown.rectTransform, new Vector2(0, 40), new Vector2(150, 104));
+            if (crown.sprite == null) crown.enabled = false;
+            _bannerLine = UIKit.Text(_banner, "Won", "", 40, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Center(_bannerLine.rectTransform, new Vector2(0, -36), new Vector2(420, 56));
+            _bannerLine.horizontalOverflow = HorizontalWrapMode.Overflow;
+            UIKit.AddOutline(_bannerLine, 3f);
             _banner.gameObject.SetActive(false);
         }
 
@@ -171,7 +155,7 @@ namespace WarPoker.FX
         /// <summary>A few troop sprites march (hopping) from one point to another, then vanish.</summary>
         public IEnumerator MarchTroops(Vector2 from, Vector2 to, long amount, float duration, int maxIcons = 5)
         {
-            int count = TroopSquad.MarchFigures(amount, maxIcons);
+            int count = TroopSquad.MarchFigures(amount, TroopStackView.Unit, maxIcons);
             if (count == 0) yield break;
             var steps = new List<IEnumerator>();
             for (int i = 0; i < count; i++)
@@ -292,18 +276,21 @@ namespace WarPoker.FX
             t.gameObject.SetActive(false);
         }
 
-        /// <summary>"VICTORY" banner with a line of detail; pops in, holds, fades.</summary>
-        public IEnumerator Victory(string line, float hold)
+        /// <summary>A crown with light rays pops over a winner's camp, with a line (e.g. "+1,240") under it.</summary>
+        public IEnumerator CrownAt(Vector2 at, string line, float hold)
         {
             _banner.gameObject.SetActive(true);
             _banner.SetAsLastSibling();
+            _banner.anchoredPosition = at;
             _bannerLine.text = line;
             _bannerGroup.alpha = 1f;
-            _banner.localScale = Vector3.one * 0.4f;
+            _banner.localScale = Vector3.one * 0.3f;
+            var rays = _rays.rectTransform;
             yield return Tween.Scale(_banner, Vector3.one, 0.3f, Ease.OutBack);
-            yield return Tween.Delay(hold);
+            yield return Tween.Value(hold, k => { if (rays != null) rays.localEulerAngles = new Vector3(0, 0, -40f * k); }, Ease.Linear);
             yield return Tween.Fade(_bannerGroup, 0f, 0.25f);
             _banner.gameObject.SetActive(false);
+            rays.localEulerAngles = Vector3.zero;
         }
     }
 }

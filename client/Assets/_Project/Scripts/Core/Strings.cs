@@ -44,7 +44,9 @@ namespace WarPoker.Core
         public const string Pot = "Pot";
         public const string Min = "Min";
         public const string PotLabel = "Pot ";
-        public const string Victory = "VICTORY";
+        public const string ShowCards = "Show cards";
+        public const string Shows = "SHOWS";
+        public const string Showdown = "Showdown";
         public const string Uncontested = "The enemy retreated";
         public const string Offline = "offline";
         public const string ReadyBadge = "READY";
@@ -60,6 +62,7 @@ namespace WarPoker.Core
                 case "INVALID_PASSWORD": return "Password must be 6-64 characters.";
                 case "USERNAME_TAKEN": return "That name is already taken.";
                 case "BAD_CREDENTIALS": return "Wrong name or password.";
+                case "CANNOT_SHOW": return "Too late to show those cards.";
                 case "UNAUTHORIZED": return SessionExpired;
                 case "REFILL_NOT_AVAILABLE": return "Refill is not available yet.";
                 case "UNKNOWN_LEVEL": return "That battlefield does not exist.";

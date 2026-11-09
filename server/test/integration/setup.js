@@ -10,7 +10,7 @@ async function start(overrides = {}) {
   await mongoose.disconnect();
   const srv = await startServer({
     port: 0, mongoUrl: MONGO_URL, log: () => {},
-    turnTimeMs: 1000, nextHandDelayMs: 30, disconnectGraceMs: 400, ...overrides,
+    turnTimeMs: 1000, nextHandDelayMs: 30, showdownDelayMs: 30, disconnectGraceMs: 400, ...overrides,
   });
   srv.url = `http://localhost:${srv.port}`;
   return srv;

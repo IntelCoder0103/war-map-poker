@@ -176,8 +176,8 @@ namespace WarPoker.Lobby
             var t = row.Button.transform;
 
             // Room badge: a bigger squad for a bigger room (1 soldier for Recruit ... 5 for King).
-            var crest = TroopStackView.Create(t, "Crest", new Vector2(150, 90), 56f);
-            UIKit.Place((RectTransform)crest.transform, new Vector2(0, 0.5f), new Vector2(105, 0), new Vector2(150, 90));
+            var crest = TroopStackView.Create(t, "Crest", new Vector2(170, 100), 84f);
+            UIKit.Place((RectTransform)crest.transform, new Vector2(0, 0.5f), new Vector2(110, -4), new Vector2(170, 100));
             crest.SetFigures(index + 1);
 
             row.Name = UIKit.Text(t, "Name", "", 40, Theme.Crimson, TextAnchor.MiddleLeft, FontStyle.Bold);

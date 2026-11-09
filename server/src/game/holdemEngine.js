@@ -1,7 +1,7 @@
 // One hand of No-Limit Texas Hold'em. Pure logic: no timers, sockets or database.
 // Every public method returns the list of events it produced, in order.
 const { computePots } = require('./pots');
-const { findWinners } = require('./handEval');
+const { findWinners, rankHands } = require('./handEval');
 
 const STREETS = ['preflop', 'flop', 'turn', 'river'];
 
@@ -191,7 +191,7 @@ class HoldemHand {
       currentBet: this.currentBet,
       turnSeat: this.turnSeat,
       players: players.map((p) => ({
-        seat: p.seat, stack: p.stack, bet: p.bet, folded: p.folded, allIn: p.allIn,
+        seat: p.seat, stack: p.stack, bet: p.bet, committed: p.committed, folded: p.folded, allIn: p.allIn,
         lastAction: p.lastAction, cards: p.revealed ? p.cards.slice() : null,
       })),
     };
@@ -317,10 +317,14 @@ class HoldemHand {
     this.phase = 'showdown';
     this.turnSeat = -1;
     const live = this._fromDealerLeft(this._live().map((p) => p.seat));
-    const { results } = findWinners(live.map((seat) => ({ seat, cards: this._sevenCards(seat) })));
+    const ranked = rankHands(live.map((seat) => ({ seat, cards: this._sevenCards(seat) })));
     for (const seat of live) this.players.get(seat).revealed = true;
+    this.hadShowdown = true;
     this._emit('showdown', {
-      reveals: live.map((seat) => ({ seat, cards: this.cardsOf(seat), handName: results.get(seat).handName })),
+      reveals: live.map((seat) => {
+        const r = ranked.get(seat);
+        return { seat, cards: this.cardsOf(seat), handName: r.evaluation.handName, bestCards: r.evaluation.bestCards, rank: r.rank };
+      }),
     });
 
     const pots = computePots([...this.players.values()].map((p) => ({ seat: p.seat, committed: p.committed, folded: p.folded })));
@@ -342,6 +346,7 @@ class HoldemHand {
   _winWithoutShowdown() {
     const winner = this._live()[0].seat;
     const total = this.committedTotal();
+    this.foldWinner = winner; // may choose to show their cards after the hand
     this.turnSeat = -1;
     this._award([{ amount: total, winners: [{ seat: winner, amount: total }], handName: null, bestCards: [] }]);
   }

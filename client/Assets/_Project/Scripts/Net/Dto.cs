@@ -72,6 +72,7 @@ namespace WarPoker.Net
         public string username;
         public long stack;
         public long bet;
+        public long totalBet;       // committed in the whole hand (stays in front of the player until the pot is paid)
         public bool inHand;
         public bool folded;
         public bool allIn;
@@ -108,6 +109,7 @@ namespace WarPoker.Net
         public List<string> yourCards;
         public List<SeatDto> seats;
         public LegalDto legal;
+        public bool canShowCards;   // I won by everyone folding and may show my cards (table:show)
 
         /// <summary>Seat entry or null (empty seat / out of range).</summary>
         public SeatDto Seat(int index)
@@ -194,6 +196,14 @@ namespace WarPoker.Net
         public int seat;
         public List<string> cards;
         public string handName;
+        public List<string> bestCards;
+        public int rank;            // 1 = best hand; ties share a rank
+    }
+
+    public class CardsShownData
+    {
+        public int seat;
+        public List<string> cards;
     }
 
     public class ShowdownData

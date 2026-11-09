@@ -12,7 +12,10 @@ module.exports = {
 
   maxSeats: 8,
   turnTimeMs: Number(env.TURN_TIME_MS || 20000),
-  nextHandDelayMs: Number(env.NEXT_HAND_DELAY_MS || 4000),
+  // Pause before the next hand: shorter when everyone folded, longer after a showdown
+  // so clients can show the hand ranking and march the soldiers to the winner.
+  nextHandDelayMs: Number(env.NEXT_HAND_DELAY_MS || 4500),
+  showdownDelayMs: Number(env.SHOWDOWN_DELAY_MS || 8000),
   disconnectGraceMs: Number(env.DISCONNECT_GRACE_MS || 60000),
 
   // One "room" per level. Each level can have several tables.
