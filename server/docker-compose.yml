@@ -1,15 +1,16 @@
 # Local dev and tests.
 #   docker compose up -d mongo        -> MongoDB on localhost:27017
-#   docker compose up server          -> server on localhost:3000 (Node 16)
-#   docker compose run --rm test      -> all tests on Node 16
+#   docker compose up server          -> server on localhost:3000 (Node 16.2)
+#   docker compose run --rm test      -> all tests on Node 16.2
+# Versions follow the client's requirements: Node 16.2, MongoDB 4.2.
 services:
   mongo:
-    image: mongo:6
+    image: mongo:4.2
     ports: ["127.0.0.1:27017:27017"]  # local only: no password is set
-    volumes: [mongo-data:/data/db]
+    volumes: [mongo42-data:/data/db]
 
   server:
-    image: node:16-alpine
+    image: node:16.2.0-alpine
     working_dir: /app
     command: sh -c "npm ci --omit=dev && node src/index.js"
     environment:
@@ -20,7 +21,7 @@ services:
     depends_on: [mongo]
 
   test:
-    image: node:16-alpine
+    image: node:16.2.0-alpine
     working_dir: /app
     command: sh -c "npm ci && npx jest --runInBand"
     environment:
@@ -29,4 +30,5 @@ services:
     depends_on: [mongo]
 
 volumes:
-  mongo-data:
+  mongo42-data:
+  mongo-data: # MongoDB 6 data from before the switch to 4.2 (kept as a backup; 4.2 can't open it)
