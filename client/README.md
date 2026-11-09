@@ -101,3 +101,16 @@ as a squad of 1–5 identical figures, one more per digit (1–9 → 1, 10–99 
 
 ## Customizing
 Wording, art, client settings and server game settings live in config files, so most changes need no code. See [docs/customizing.md](../docs/customizing.md).
+
+## Unity 2022.1.22 on newer Linux (Ubuntu 23.10+, e.g. 24.04)
+Unity 2022.1 predates these distros; four things are needed (all done on the dev server):
+1. **libssl 1.1** for the bundled .NET 5 compiler ("No usable version of libssl was found"): copy
+   `libssl.so.1.1` + `libcrypto.so.1.1` (Ubuntu 20.04 package) to `Editor/Data/libssl1.1/` and start Unity with
+   that folder on `LD_LIBRARY_PATH` (the `unity-2022.1` launcher in `~/.local/bin` does this).
+2. **bee_backend wrapper** for the known hang at "Initial Asset Database Refresh" (Unity issue UUM-54803): rename
+   `Editor/Data/bee_backend` to `bee_backend_real` and put a small script in its place that drops `--stdin-canary`.
+3. **OpenJDK 8** in `PlaybackEngines/AndroidPlayer/OpenJDK` — 2022.1 rejects JDK 11 ("JDK not found").
+   Unity's build: `download_unity/open-jdk/open-jdk-linux-x64/jdk8u172-b11_4be8440c….zip`.
+4. **JKS debug keystore**: JDK 8 can't read the PKCS12 `~/.android/debug.keystore` written by newer Unity/JDKs;
+   convert it with `keytool -importkeystore … -deststoretype JKS` (keeps the same key).
+Windows and macOS don't need any of this. Unity 2022.1 targets Android API 30 at most.
