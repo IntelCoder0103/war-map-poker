@@ -44,18 +44,19 @@ namespace WarPoker.EditorTools
         /// frame 0; one-shots sample [t0, t1] inclusive so the last frame is the final pose.
         struct Strip
         {
-            public string File, Clip; public int Frames; public float T0, T1; public bool Loop;
-            public Strip(string file, string clip, int frames, float t0, float t1, bool loop)
-            { File = file; Clip = clip; Frames = frames; T0 = t0; T1 = t1; Loop = loop; }
+            public string File, Clip; public int Frames; public float T0, T1; public bool Loop; public float Yaw;
+            public Strip(string file, string clip, int frames, float t0, float t1, bool loop, float yaw)
+            { File = file; Clip = clip; Frames = frames; T0 = t0; T1 = t1; Loop = loop; Yaw = yaw; }
         }
         // At most 16 frames per strip: 16 x 128 = 2048 px is the sprite importer's default max texture size
         // (a wider strip would be downscaled on import and every frame blurred).
         static readonly Strip[] Strips =
         {
-            new Strip("soldier_idle.png",    "Footman_Idle",    12, 0f, 1f,         true),
-            new Strip("soldier_walk.png",    "Footman_Walk",    12, 0f, 4f / 3f,    true),
-            new Strip("soldier_victory.png", "Footman_Victory", 16, 0f, 10f / 3f,   false),
-            new Strip("soldier_death.png",   "Footman_Death",   14, 0f, 1f,         false),
+            // Standing clips face the player; the march is seen from the side so it reads as walking.
+            new Strip("soldier_idle.png",    "Footman_Idle",    12, 0f, 1f,         true,  FrontYaw),
+            new Strip("soldier_walk.png",    "Footman_Walk",    12, 0f, 4f / 3f,    true,  SideYaw),
+            new Strip("soldier_victory.png", "Footman_Victory", 16, 0f, 10f / 3f,   false, FrontYaw),
+            new Strip("soldier_death.png",   "Footman_Death",   14, 0f, 1f,         false, FrontYaw),
         };
         const string IconFile = "soldier.png";
 
@@ -63,8 +64,10 @@ namespace WarPoker.EditorTools
         const int Icon = 256;          // static icon px
         const int SS = 4;              // supersampling factor
         const float CamPitch = 24f;    // degrees looking down
-        const float DefaultYaw = 125f; // model faces +Z; 180 = facing the camera, 90 = profile facing screen right
-        static float Yaw => float.TryParse(Arg("-troopYaw"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y) ? y : DefaultYaw;
+        // Model faces +Z; 180 = facing the camera, 90 = profile facing screen right.
+        const float FrontYaw = 180f, SideYaw = 125f;
+        /// -troopYaw &lt;deg&gt; forces one angle for every strip (for trying looks); otherwise each strip uses its own.
+        static float YawFor(Strip s) => float.TryParse(Arg("-troopYaw"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y) ? y : s.Yaw;
         const float Pad = 0.02f;       // frame padding (fraction of the side), outline added on top
         const float OutlineFrac = 2.25f / 128f; // outline thickness as a fraction of the output side
         static readonly Color OutlineCol = new Color(0.10f, 0.06f, 0.04f, 1f);
@@ -169,7 +172,7 @@ namespace WarPoker.EditorTools
             {
                 var pivot = new GameObject("pivot");
                 pivot.transform.SetParent(stage.transform, false);
-                pivot.transform.rotation = Quaternion.Euler(0, Yaw, 0);
+                pivot.transform.rotation = Quaternion.Euler(0, YawFor(Strips[0]), 0);
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Model);
                 var ch = (GameObject)Object.Instantiate(prefab, pivot.transform, false);
                 ch.transform.localPosition = Vector3.zero; ch.transform.localRotation = Quaternion.identity;
@@ -182,6 +185,7 @@ namespace WarPoker.EditorTools
                 var poses = new List<List<Pose>>();
                 foreach (var s in Strips)
                 {
+                    pivot.transform.rotation = Quaternion.Euler(0, YawFor(s), 0);
                     var clip = LoadClip(AnimDir + s.Clip + ".fbx");
                     var list = new List<Pose>();
                     for (int i = 0; i < s.Frames; i++)
