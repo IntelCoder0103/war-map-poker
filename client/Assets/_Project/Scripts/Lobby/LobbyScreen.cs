@@ -176,18 +176,19 @@ namespace WarPoker.Lobby
             var t = row.Button.transform;
 
             // Room badge: a bigger squad for a bigger room (1 soldier for Recruit ... 5 for King).
-            var crest = TroopStackView.Create(t, "Crest", new Vector2(170, 100), 84f);
-            UIKit.Place((RectTransform)crest.transform, new Vector2(0, 0.5f), new Vector2(110, -4), new Vector2(170, 100));
+            // Squad badge on the left of the card; the text columns start after it.
+            var crest = TroopStackView.Create(t, "Crest", new Vector2(250, 92), 62f);
+            UIKit.Place((RectTransform)crest.transform, new Vector2(0, 0.5f), new Vector2(160, 0), new Vector2(250, 92));
             crest.SetFigures(index + 1);
 
             row.Name = UIKit.Text(t, "Name", "", 40, Theme.Crimson, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIKit.Place(row.Name.rectTransform, new Vector2(0, 0.5f), new Vector2(330, 0), new Vector2(240, 70));
+            UIKit.Place(row.Name.rectTransform, new Vector2(0, 0.5f), new Vector2(400, 0), new Vector2(180, 70));
             row.BuyIn = UIKit.Text(t, "BuyIn", "", 30, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIKit.Place(row.BuyIn.rectTransform, new Vector2(0, 0.5f), new Vector2(560, 0), new Vector2(300, 60));
+            UIKit.Place(row.BuyIn.rectTransform, new Vector2(0, 0.5f), new Vector2(610, 0), new Vector2(220, 60));
             row.Blinds = UIKit.Text(t, "Blinds", "", 28, Theme.InkSoft, TextAnchor.MiddleLeft);
-            UIKit.Place(row.Blinds.rectTransform, new Vector2(0, 0.5f), new Vector2(830, 0), new Vector2(260, 60));
+            UIKit.Place(row.Blinds.rectTransform, new Vector2(0, 0.5f), new Vector2(850, 0), new Vector2(240, 60));
             row.Players = UIKit.Text(t, "Players", "", 26, Theme.InkSoft, TextAnchor.MiddleLeft, FontStyle.Italic);
-            UIKit.Place(row.Players.rectTransform, new Vector2(1, 0.5f), new Vector2(-250, 0), new Vector2(130, 60));
+            UIKit.Place(row.Players.rectTransform, new Vector2(1, 0.5f), new Vector2(-245, 0), new Vector2(120, 60));
 
             var marchBg = UIKit.Panel(t, "MarchBg", "btn_red", Color.white, 0.55f, true);
             UIKit.Place(marchBg.rectTransform, new Vector2(1, 0.5f), new Vector2(-105, 0), new Vector2(170, 78));

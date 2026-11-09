@@ -17,6 +17,9 @@ namespace WarPoker.Troops
         /// <summary>The table's big blind: one "unit" for squad sizing. Set by the game screen.</summary>
         public static long Unit = 20;
 
+        /// How far (in figure sizes) to lift frames so the figure, not the frame, is centred.
+        const float FigureLift = 0.3f;
+
         public float IconSize = 30f;            // the largest a figure may be drawn
         public Color LabelColor = Theme.Ink;    // kept for callers; the squad has no label of its own
 
@@ -68,7 +71,7 @@ namespace WarPoker.Troops
             if (area.x < 1f || area.y < 1f) area = _rt.sizeDelta;
             int perRank = Mathf.Min(n, n <= 6 ? 6 : Mathf.CeilToInt(n / 3f));
             int ranks = Mathf.CeilToInt(n / (float)perRank);
-            const float stepK = 0.5f, rankK = 0.3f;
+            const float stepK = 0.6f, rankK = 0.3f; // front-facing figures are wide (spear + shield)
             float widthUnits = 1f + (perRank - 1) * stepK + (ranks > 1 ? stepK * 0.5f : 0f);
             float heightUnits = 1f + (ranks - 1) * rankK;
             float size = Mathf.Min(IconSize, area.x / widthUnits, area.y * 1.25f / heightUnits);
@@ -91,7 +94,8 @@ namespace WarPoker.Troops
                     // each figure idles on its own beat
                     if (idle != null) SpriteAnim.On(img).Play(idle, TroopArt.IdleFps, true, true);
                     var irt = img.rectTransform;
-                    irt.anchoredPosition = new Vector2(x0 + i * step, y);
+                    // the rendered figure stands below the frame's centre (room for the spear above): lift it
+                    irt.anchoredPosition = new Vector2(x0 + i * step, y + size * FigureLift);
                     irt.sizeDelta = new Vector2(size, size) * TroopArt.FrameScale; // layout is in figure size
                     irt.SetAsLastSibling();
                 }
