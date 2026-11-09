@@ -21,7 +21,7 @@ namespace WarPoker.Main
         /// <summary>Which Resources file holds the wording (lets you keep several, e.g. Config/text_holiday).</summary>
         public static string WordingFile = "Config/text";
         /// <summary>Seconds the showdown ranking board stays up after the last row appears.</summary>
-        public static float ShowdownHoldSeconds = 1.6f;
+        public static float ShowdownHoldSeconds = 4.5f;
         /// <summary>Seconds soldiers take to march from the bet spots to the winner.</summary>
         public static float MarchSeconds = 0.7f;
         /// <summary>Seconds the winner's crown stays up.</summary>

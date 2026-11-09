@@ -183,7 +183,7 @@ namespace WarPoker.Game
         }
 
         /// <summary>Bet spot: just outside the camp, on the line toward the pot.</summary>
-        const float RankRowH = 86f, RankRowGap = 8f, RankW = 900f;
+        const float RankRowH = 104f, RankRowGap = 8f, RankW = 1000f;
 
         void BuildRankBoard()
         {
@@ -215,22 +215,23 @@ namespace WarPoker.Game
                 row.Rect.anchorMin = row.Rect.anchorMax = new Vector2(0.5f, 1f);
                 row.Rect.sizeDelta = new Vector2(RankW - 70f, RankRowH);
                 row.Group = UIKit.Group(bg.gameObject);
-                row.Rank = UIKit.Text(bg.transform, "Rank", "", 36, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
+                row.Rank = UIKit.Text(bg.transform, "Rank", "", 40, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
                 UIKit.Place(row.Rank.rectTransform, new Vector2(0, 0.5f), new Vector2(50, 0), new Vector2(80, RankRowH));
                 UIKit.AddOutline(row.Rank, 2f);
-                row.Name = UIKit.Text(bg.transform, "Name", "", 30, Theme.ParchmentLight, TextAnchor.MiddleLeft, FontStyle.Bold);
+                row.Name = UIKit.Text(bg.transform, "Name", "", 32, Theme.ParchmentLight, TextAnchor.MiddleLeft, FontStyle.Bold);
                 UIKit.Place(row.Name.rectTransform, new Vector2(0, 0.5f), new Vector2(190, 0), new Vector2(190, RankRowH));
                 row.Name.horizontalOverflow = HorizontalWrapMode.Overflow;
-                row.Hand = UIKit.Text(bg.transform, "Hand", "", 28, Theme.GoldLight, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UIKit.Place(row.Hand.rectTransform, new Vector2(0, 0.5f), new Vector2(390, 0), new Vector2(210, RankRowH));
+                row.Hand = UIKit.Text(bg.transform, "Hand", "", 30, Theme.GoldLight, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UIKit.Place(row.Hand.rectTransform, new Vector2(0, 0.5f), new Vector2(400, 0), new Vector2(230, RankRowH));
                 row.Hand.horizontalOverflow = HorizontalWrapMode.Overflow;
                 row.Cards = new CardView[5];
-                var cardSize = new Vector2(54, 75);
+                // Compact cards (big rank and suit, no art) so the hands read at a glance.
+                var cardSize = new Vector2(64, 88);
                 for (int c = 0; c < 5; c++)
                 {
-                    var card = CardView.Create(bg.transform, "Card" + c, cardSize);
+                    var card = CardView.CreateCompact(bg.transform, "Card" + c, cardSize);
                     card.Rect.anchorMin = card.Rect.anchorMax = new Vector2(1f, 0.5f);
-                    card.Rect.anchoredPosition = new Vector2(-300 + c * 58, 0);
+                    card.Rect.anchoredPosition = new Vector2(-330 + c * 72, 0);
                     row.Cards[c] = card;
                 }
                 _rankRows.Add(row);

@@ -25,7 +25,7 @@ const defaults = {
   // Pause before the next hand: shorter when everyone folded, longer after a showdown
   // so clients can show the hand ranking and march the soldiers to the winner.
   nextHandDelayMs: 4500,
-  showdownDelayMs: 8000,
+  showdownDelayMs: 12000,
   disconnectGraceMs: 60000,
   // Missed turns in a row before an idle player is sent back to the lobby.
   idleTimeouts: 3,

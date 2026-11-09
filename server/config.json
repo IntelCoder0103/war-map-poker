@@ -7,7 +7,7 @@
   "maxSeats": 8,
   "turnTimeMs": 20000,
   "nextHandDelayMs": 4500,
-  "showdownDelayMs": 8000,
+  "showdownDelayMs": 12000,
   "disconnectGraceMs": 60000,
   "idleTimeouts": 3,
   "readyTimeoutMs": 30000,

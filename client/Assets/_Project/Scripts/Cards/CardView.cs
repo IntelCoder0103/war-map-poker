@@ -29,11 +29,24 @@ namespace WarPoker.Cards
             var rt = UIKit.Rect(name, parent);
             rt.sizeDelta = size;
             var view = rt.gameObject.AddComponent<CardView>();
-            view.Build(size);
+            view.Build(size, false);
             return view;
         }
 
-        void Build(Vector2 size)
+        /// <summary>
+        /// A small, easy-to-read card: a big rank with the suit under it and no art area.
+        /// Used where many cards sit side by side (the showdown ranking board).
+        /// </summary>
+        public static CardView CreateCompact(Transform parent, string name, Vector2 size)
+        {
+            var rt = UIKit.Rect(name, parent);
+            rt.sizeDelta = size;
+            var view = rt.gameObject.AddComponent<CardView>();
+            view.Build(size, true);
+            return view;
+        }
+
+        void Build(Vector2 size, bool compact)
         {
             Rect = (RectTransform)transform;
             _group = UIKit.Group(gameObject);
@@ -65,6 +78,13 @@ namespace WarPoker.Cards
             _body.pixelsPerUnitMultiplier = ppu;
             UIKit.Stretch(_body.rectTransform);
             _face = _body.rectTransform;
+
+            if (compact)
+            {
+                BuildCompactFace(w, h);
+                FinishBuild(ppu);
+                return;
+            }
 
             // Left strip: rank on top, suit pip below.
             float pad = Mathf.Max(2f, w * 0.035f);
@@ -107,6 +127,35 @@ namespace WarPoker.Cards
             art.offsetMin = new Vector2(pad * 0.6f + stripW + pad * 0.4f, pad);
             art.offsetMax = new Vector2(-pad, -pad);
 
+            FinishBuild(ppu);
+        }
+
+        // Compact face: rank in the upper part, as big as fits; suit pip below it.
+        void BuildCompactFace(float w, float h)
+        {
+            _rankSize = Mathf.Max(12, Mathf.RoundToInt(Mathf.Min(h * 0.5f, w * 0.78f)));
+            _rankSizeTen = Mathf.Max(10, Mathf.RoundToInt(Mathf.Min(h * 0.44f, w * 0.52f)));
+            _rank = UIKit.Text(_face, "Rank", "", _rankSize, Theme.CardBlack, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _rank.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _rank.verticalOverflow = VerticalWrapMode.Overflow;
+            var rrt = _rank.rectTransform;
+            rrt.anchorMin = new Vector2(0, 0.42f);
+            rrt.anchorMax = new Vector2(1, 1);
+            rrt.offsetMin = new Vector2(0, 0);
+            rrt.offsetMax = new Vector2(0, -h * 0.03f);
+
+            _suit = UIKit.Deco(_face, "Suit", null, Theme.CardBlack);
+            _suit.preserveAspect = true;
+            var srt = _suit.rectTransform;
+            float suitSize = Mathf.Min(w * 0.5f, h * 0.36f);
+            srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0f);
+            srt.pivot = new Vector2(0.5f, 0f);
+            srt.anchoredPosition = new Vector2(0, h * 0.08f);
+            srt.sizeDelta = new Vector2(suitSize, suitSize);
+        }
+
+        void FinishBuild(float ppu)
+        {
             _back = UIKit.Deco(transform, "Back", CardArt.Back(), Color.white);
             UIKit.Stretch(_back.rectTransform);
 
@@ -136,7 +185,7 @@ namespace WarPoker.Cards
             _rank.color = ink;
             _suit.sprite = CardArt.Suit(card.Suit);
             _suit.color = ink;
-            _art.sprite = CardArt.Main(card);
+            if (_art != null) _art.sprite = CardArt.Main(card);
             SetFaceUp(faceUp);
         }
 
