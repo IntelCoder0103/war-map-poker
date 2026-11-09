@@ -62,6 +62,11 @@ function attachSockets(io, manager, log) {
     });
     on('room:join', async ({ level }) => {
       const t = await manager.join(user, level);
+      // The connection may have dropped while the buy-in was being saved: then start the
+      // disconnect grace timer now, or the seat would wait for a player who isn't there.
+      if (!socket.connected || sockets.get(user.userId) !== socket) {
+        if (!sockets.has(user.userId)) t.setConnected(user.userId, false);
+      }
       // Send the snapshot right after the ack.
       setImmediate(() => socket.emit('table:state', t.snapshotFor(user.userId)));
       const u = await User.findById(user.userId);

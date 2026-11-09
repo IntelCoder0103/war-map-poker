@@ -23,14 +23,17 @@ class TableManager {
   async join(user, levelId) {
     const level = this.levels.find((l) => l.id === levelId);
     if (!level) throw new GameError('UNKNOWN_LEVEL');
-    if (this.userTable.has(user.userId) || this.joining.has(user.userId)) throw new GameError('ALREADY_SEATED');
+    const current = this.userTable.get(user.userId);
+    // Left while all-in: still in that hand until it ends, then paid out.
+    if (current && current.seatOf(user.userId) === -1) throw new GameError('LEAVING_TABLE');
+    if (current || this.joining.has(user.userId)) throw new GameError('ALREADY_SEATED');
     this.joining.add(user.userId);
     try {
-      await this.hooks.wallet.buyIn(user.userId, level.buyIn);
+      const session = await this.hooks.wallet.buyIn(user.userId, level.buyIn);
       const tables = this.tables.get(level.id);
       const table = tables.find((t) => t.hasFreeSeat()) || this._newTable(level);
       this.userTable.set(user.userId, table);
-      table.seatPlayer(user, level.buyIn);
+      table.seatPlayer(user, level.buyIn, session);
       return table;
     } finally {
       this.joining.delete(user.userId);

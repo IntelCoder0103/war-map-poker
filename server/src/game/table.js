@@ -23,6 +23,8 @@ class Table {
     this.turnDeadline = 0;
     this.nextHandTimer = null;
     this.showable = null; // { seat, userId, cards } — a winner by fold may show their cards until the next hand
+    this.readyTimer = null; // waiting phase: sends players who never press Ready back to the lobby
+    this.readyDeadline = 0;
   }
 
   // ---------- queries ----------
@@ -45,15 +47,18 @@ class Table {
 
   // ---------- player commands ----------
 
-  // The buy-in has already been taken from the player's balance.
-  seatPlayer(user, stack) {
+  // The buy-in has already been taken from the player's balance. `session` identifies this sitting in the wallet.
+  seatPlayer(user, stack, session = null) {
     const seat = this.seats.indexOf(null);
     if (seat === -1) throw new GameError('TABLE_FULL');
     this.seats[seat] = {
-      userId: user.userId, username: user.username, stack,
+      userId: user.userId, username: user.username, stack, session,
       ready: this.started, // joining a running game counts as ready
       connected: true, ghost: false, discTimer: null,
+      timeouts: 0, // turns in a row that ran out; too many and the player goes back to the lobby
+      leaveReason: null, // set when an all-in player leaves: they are paid when the hand ends
     };
+    this._updateReadyTimer(); // before broadcasting, so snapshots carry the countdown
     this._broadcast('playerJoined', { seat, username: user.username });
     this.hooks.onChange(this);
     return seat;
@@ -64,6 +69,7 @@ class Table {
     const s = this.seats[seat];
     if (!s.ready) {
       s.ready = true;
+      this._updateReadyTimer(); // before broadcasting, so snapshots carry the countdown
       this._broadcast('playerReady', { seat });
     }
     this._maybeStartHand();
@@ -72,14 +78,30 @@ class Table {
   action(userId, type, amount) {
     const seat = this._requireSeat(userId);
     if (!this.hand) throw new GameError('NOT_YOUR_TURN');
-    this._process(this.hand.act(seat, type, amount));
+    const events = this.hand.act(seat, type, amount);
+    this.seats[seat].timeouts = 0; // acting by hand shows the player is here
+    this._process(events);
   }
 
-  // reason: 'left' | 'broke' | 'timeout'. Returns the player's public user (with the new balance).
+  // reason: 'left' | 'broke' | 'timeout' | 'idle'. Returns the player's public user (with the new balance),
+  // or null when the payout comes later (an all-in player stays in the hand until it ends).
   async leave(userId, reason = 'left') {
     const seat = this._requireSeat(userId);
     const s = this.seats[seat];
     if (s.discTimer) clearTimeout(s.discTimer);
+    s.discTimer = null;
+
+    const p = this.hand && this.hand.players.get(seat);
+    if (p && p.allIn && !p.folded) {
+      // All-in: nothing is left to decide, so they keep their share of the pot.
+      // The seat stays in the hand and is paid out when the hand ends.
+      s.ghost = true;
+      s.leaveReason = reason;
+      this.hooks.notify(s.userId, 'table:removed', { reason });
+      this._broadcast('playerLeft', { seat, username: s.username, reason });
+      this.hooks.onChange(this);
+      return null;
+    }
 
     if (this.hand && this.hand.players.has(seat)) {
       this._process(this.hand.forceFold(seat));
@@ -148,9 +170,12 @@ class Table {
       turnTimeMs: this.settings.turnTimeMs,
       yourSeat,
       yourCards: yourSeat !== -1 && byPlayer.has(yourSeat) ? (this.handCards[yourSeat] || []) : [],
+      readyDeadline: this.readyDeadline || 0, // ms; while waiting, when players who aren't ready go back to the lobby
       seats: this.seats.map((s, seat) => {
-        if (!s || s.ghost) return null;
+        if (!s) return null;
         const p = byPlayer.get(seat);
+        // Someone who left mid-hand stays on screen (offline, with their bet) until the hand ends.
+        if (s.ghost && !(p && this.hand && hs === this.handState)) return null;
         return {
           seat, userId: s.userId, username: s.username,
           stack: p ? p.stack : s.stack,
@@ -160,7 +185,7 @@ class Table {
           folded: p ? p.folded : false,
           allIn: p ? p.allIn : false,
           ready: s.ready,
-          connected: s.connected,
+          connected: s.connected && !s.ghost,
           lastAction: p ? p.lastAction : null,
           cards: p ? p.cards : null,
         };
@@ -213,6 +238,7 @@ class Table {
       handNumber: this.handNumber,
     });
     this.showable = null;
+    this._updateReadyTimer(); // a hand is running: no ready countdown
     const events = this.hand.start(); // deals the cards
     this.handCards = {};
     this.handSeatUsers = {};
@@ -249,7 +275,13 @@ class Table {
     if (seat === -1) return;
     this.turnTimer = setTimeout(() => {
       this.turnTimer = null;
-      if (this.hand && this.hand.turnSeat === seat) this._process(this.hand.timeout(seat));
+      if (!this.hand || this.hand.turnSeat !== seat) return;
+      const s = this.seats[seat];
+      this._process(this.hand.timeout(seat));
+      // Too many missed turns in a row: the player is away, so send them back to the lobby.
+      if (s && !s.ghost && this.seats[seat] === s && ++s.timeouts >= this.settings.idleTimeouts) {
+        this.leave(s.userId, 'idle').catch((e) => this.hooks.log('leave on idle failed', e));
+      }
     }, Math.max(0, this.turnDeadline - Date.now()));
   }
 
@@ -266,16 +298,18 @@ class Table {
     this.turnDeadline = 0;
 
     const toSave = [];
+    const leftAllIn = []; // [seatInfo, stack]: left while all-in, paid out now
     for (const [seatStr, stack] of Object.entries(stacks)) {
       const seat = Number(seatStr);
       const s = this.seats[seat];
       if (!s) continue;
       if (s.ghost) {
-        this.seats[seat] = null; // the player already left and was paid out
+        this.seats[seat] = null; // the player left mid-hand (folded ones were paid when they left)
+        if (s.leaveReason) leftAllIn.push([s, stack]);
         continue;
       }
       s.stack = stack;
-      toSave.push({ userId: s.userId, stack });
+      toSave.push({ userId: s.userId, session: s.session, stack });
     }
     this.hooks.wallet.saveStacks(toSave).catch((e) => this.hooks.log('saveStacks failed', e));
 
@@ -285,6 +319,10 @@ class Table {
       this._maybeStartHand();
     }, delay);
 
+    for (const [s, stack] of leftAllIn) {
+      this.hooks.onPlayerGone(s.userId, this);
+      this._payOut(s, stack).catch((e) => this.hooks.log('pay out after all-in leave failed', e));
+    }
     for (let seat = 0; seat < this.seats.length; seat++) {
       const s = this.seats[seat];
       if (s && !s.ghost && s.stack === 0) {
@@ -309,17 +347,47 @@ class Table {
     this.handSeatUsers = {};
     for (const s of this.seats) if (s) s.ready = false;
     this._broadcast('waiting', {});
+    this._updateReadyTimer();
+  }
+
+  // Waiting for Ready: once 2+ players are ready, the others get readyTimeoutMs to join in,
+  // then go back to the lobby, so one idle player can't hold up the whole table.
+  _updateReadyTimer() {
+    const seated = this.seats.filter((s) => s && !s.ghost);
+    const ready = seated.filter((s) => s.ready).length;
+    const waitingOnSomeone = !this.started && !this.hand && ready >= 2 && ready < seated.length;
+    if (!waitingOnSomeone) {
+      if (this.readyTimer) clearTimeout(this.readyTimer);
+      this.readyTimer = null;
+      this.readyDeadline = 0;
+      return;
+    }
+    if (this.readyTimer) return;
+    this.readyDeadline = Date.now() + this.settings.readyTimeoutMs;
+    this.readyTimer = setTimeout(() => {
+      this.readyTimer = null;
+      this.readyDeadline = 0;
+      if (this.started || this.hand) return;
+      for (const s of this.seats.filter((x) => x && !x.ghost && !x.ready)) {
+        this.leave(s.userId, 'idle').catch((e) => this.hooks.log('leave when not ready failed', e));
+      }
+    }, this.settings.readyTimeoutMs);
   }
 
   // ---------- helpers ----------
 
   async _removed(seat, s, stack, reason) {
+    this._updateReadyTimer(); // before broadcasting, so snapshots carry the right countdown
     this._broadcast('playerLeft', { seat, username: s.username, reason });
     this.hooks.onPlayerGone(s.userId, this);
     this.hooks.notify(s.userId, 'table:removed', { reason });
     this.hooks.onChange(this);
     if (!this.hand) this._maybeStartHand();
-    const user = await this.hooks.wallet.cashOut(s.userId, stack);
+    return this._payOut(s, stack);
+  }
+
+  async _payOut(s, stack) {
+    const user = await this.hooks.wallet.cashOut(s.userId, stack, s.session);
     if (user) this.hooks.notify(s.userId, 'user:balance', { balance: user.balance, nextRefillAt: user.nextRefillAt });
     return user;
   }
@@ -344,6 +412,7 @@ class Table {
   dispose() {
     this._clearTurnTimer();
     if (this.nextHandTimer) clearTimeout(this.nextHandTimer);
+    if (this.readyTimer) clearTimeout(this.readyTimer);
     for (const s of this.seats) if (s && s.discTimer) clearTimeout(s.discTimer);
   }
 }

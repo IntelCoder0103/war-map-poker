@@ -42,6 +42,12 @@ namespace WarPoker.Game
         GameObject _readyPanel;
         bool _showRequested;
 
+        // Removed from the table (busted, idle, ...): the hand finishes on screen, then this dialog explains.
+        string _removedReason;
+        GameObject _dialog;
+        Text _dialogTitle, _dialogText;
+        float _nextReadyTick;
+
         // Showdown ranking board
         CanvasGroup _rankGroup;
         RectTransform _rankPanel;
@@ -158,6 +164,7 @@ namespace WarPoker.Game
             _showButton.gameObject.SetActive(false);
 
             BuildRankBoard();
+            BuildRemovedDialog();
 
             _actions = ActionBar.Create(_board, ActionBarPos);
             _actions.OnAction = SendAction;
@@ -221,6 +228,62 @@ namespace WarPoker.Game
             return _rankRows[i];
         }
 
+        void BuildRemovedDialog()
+        {
+            var shade = UIKit.Image(Root, "RemovedDialog", null, new Color(0f, 0f, 0f, 0.55f)); // blocks clicks behind it
+            UIKit.Stretch(shade.rectTransform);
+            _dialog = shade.gameObject;
+            var panel = UIKit.Panel(shade.transform, "Panel", "panel_window", Color.white, 0.7f);
+            UIKit.Center(panel.rectTransform, Vector2.zero, new Vector2(820, 480));
+            var ribbon = UIKit.Panel(panel.transform, "Ribbon", "ribbon", Color.white, 0.8f, true);
+            UIKit.Center(ribbon.rectTransform, new Vector2(0, 236), new Vector2(620, 120));
+            _dialogTitle = UIKit.Text(ribbon.transform, "Title", "", 50, Theme.Crimson, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Stretch(_dialogTitle.rectTransform);
+            _dialogTitle.rectTransform.offsetMin = new Vector2(130, 10);
+            _dialogTitle.rectTransform.offsetMax = new Vector2(-130, -6);
+            UIKit.Title(_dialogTitle, 2f);
+            _dialogText = UIKit.Text(panel.transform, "Text", "", 34, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UIKit.Center(_dialogText.rectTransform, new Vector2(0, 30), new Vector2(680, 200));
+            var back = UIKit.Button(panel.transform, "Back", Strings.BackToLobby, new Vector2(380, 100), Theme.Crimson, Theme.ParchmentLight, 40, () =>
+            {
+                _removedReason = null;
+                _dialog.SetActive(false);
+                ExitToLobby(null);
+            });
+            UIKit.Center((RectTransform)back.transform, new Vector2(0, -150), new Vector2(380, 100));
+            _dialog.SetActive(false);
+        }
+
+        /// <summary>The server took us off the table. Retreating by choice goes straight back; anything else
+        /// (busted, idle, away) lets the hand play out on screen first, then shows a dialog.</summary>
+        public void OnRemoved(string reason)
+        {
+            if (reason == "left")
+            {
+                if (!_leaving) ExitToLobby(Strings.RemovedReason(reason));
+                return;
+            }
+            _removedReason = reason ?? "";
+            _showButton.gameObject.SetActive(false);
+            if (_runner == null) ShowRemovedDialog();
+        }
+
+        void ShowRemovedDialog()
+        {
+            if (_removedReason == null || _dialog.activeSelf) return;
+            _actions.Hide();
+            _readyPanel.SetActive(false);
+            _showButton.gameObject.SetActive(false);
+            bool broke = _removedReason == "broke";
+            _dialogTitle.text = broke ? Strings.DefeatedTitle : Strings.RemovedTitle;
+            _dialogText.text = broke ? Strings.BrokeDetail : Strings.RemovedReason(_removedReason);
+            _dialog.SetActive(true);
+            _dialog.transform.SetAsLastSibling();
+            var panel = _dialog.transform.GetChild(0);
+            panel.localScale = Vector3.one * 0.6f;
+            StartCoroutine(Tween.Scale(panel, Vector3.one, 0.3f, Ease.OutBack));
+        }
+
         void HideRankBoard()
         {
             if (_rankPanel != null) _rankPanel.gameObject.SetActive(false);
@@ -256,6 +319,8 @@ namespace WarPoker.Game
         {
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             _leaving = false;
+            _removedReason = null;
+            if (_dialog != null) _dialog.SetActive(false);
         }
 
         public override void OnHide()
@@ -359,6 +424,7 @@ namespace WarPoker.Game
             }
             Tween.Speed = 1f;
             _runner = null;
+            if (_removedReason != null) ShowRemovedDialog();
         }
 
         static bool Animates(string type)
@@ -378,6 +444,14 @@ namespace WarPoker.Game
                 _playingState = null;
                 if (last != null) Apply(last);
                 else if (_state != null) Apply(_state);
+                if (_removedReason != null) ShowRemovedDialog();
+            }
+
+            // Ready countdown text.
+            if (_state != null && _state.phase == "waiting" && _state.readyDeadline > 0 && Time.unscaledTime >= _nextReadyTick)
+            {
+                _nextReadyTick = Time.unscaledTime + 0.5f;
+                RenderReady(_state);
             }
         }
 
@@ -469,6 +543,13 @@ namespace WarPoker.Game
             _readyButton.interactable = true;
             if (seated < 2) _readyInfo.text = "Waiting for more commanders to join (" + ready + "/" + seated + " ready)";
             else _readyInfo.text = Strings.WaitingForOthers + " (" + ready + "/" + seated + " ready)";
+            if (s.readyDeadline > 0)
+            {
+                long secs = System.Math.Max(0, (s.readyDeadline - ServerNow() + 999) / 1000);
+                _readyInfo.text = me.ready
+                    ? "Battle starts in " + secs + "s (" + ready + "/" + seated + " ready)"
+                    : "Press Ready within " + secs + "s or return to the barracks!";
+            }
             if (seated < 2 && me.ready) _centerMsg.text = "Awaiting an opponent...";
         }
 

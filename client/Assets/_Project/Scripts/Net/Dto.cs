@@ -110,6 +110,7 @@ namespace WarPoker.Net
         public List<SeatDto> seats;
         public LegalDto legal;
         public bool canShowCards;   // I won by everyone folding and may show my cards (table:show)
+        public long readyDeadline;  // waiting phase: when players who aren't ready go back to the lobby (0 = no countdown)
 
         /// <summary>Seat entry or null (empty seat / out of range).</summary>
         public SeatDto Seat(int index)

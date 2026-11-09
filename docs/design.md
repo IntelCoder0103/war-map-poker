@@ -33,10 +33,10 @@ Animations and effects are on the game screen only: dealing, card flips, troops 
 | Room | Starting soldiers (buy-in) | Blinds |
 |---|---|---|
 | Recruit | 1,000 | 10 / 20 |
-| Soldier | 5,000 | 50 / 100 |
-| Captain | 20,000 | 200 / 400 |
-| General | 100,000 | 1,000 / 2,000 |
-| King | 500,000 | 5,000 / 10,000 |
+| Soldier | 2,000 | 20 / 40 |
+| Captain | 5,000 | 50 / 100 |
+| General | 10,000 | 100 / 200 |
+| King | 50,000 | 500 / 1,000 |
 
 - **New accounts** start with 2,000 soldiers.
 - **Refill:** if your balance is under 1,000 and you're not seated, you can claim a free top-up to 1,000 once every 24 hours.

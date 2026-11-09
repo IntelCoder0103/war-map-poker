@@ -1,4 +1,5 @@
 // Every change to a player's soldiers goes through here, as single atomic updates.
+const crypto = require('crypto');
 const User = require('./User');
 const config = require('../config');
 const { GameError } = require('../game/holdemEngine');
@@ -8,32 +9,33 @@ function publicUser(u) {
   return { id: String(u._id), username: u.username, balance: u.balance, nextRefillAt: next };
 }
 
-// Move `amount` from the balance to a table stack.
+// Move `amount` from the balance to a table stack. Returns the id of this new sitting.
 async function buyIn(userId, amount) {
+  const session = crypto.randomUUID();
   const u = await User.findOneAndUpdate(
     { _id: userId, atTable: false, balance: { $gte: amount } },
-    { $inc: { balance: -amount }, $set: { atTable: true, tableStack: amount } },
+    { $inc: { balance: -amount }, $set: { atTable: true, tableStack: amount, tableSession: session } },
     { new: true },
   );
-  if (u) return u.balance;
+  if (u) return session;
   const current = await User.findById(userId);
   if (!current) throw new GameError('UNAUTHORIZED');
   throw new GameError(current.atTable ? 'ALREADY_SEATED' : 'INSUFFICIENT_BALANCE');
 }
 
-// Save table stacks after each hand: [{ userId, stack }].
+// Save table stacks after each hand: [{ userId, session, stack }].
 async function saveStacks(entries) {
   if (entries.length === 0) return;
-  await User.bulkWrite(entries.map(({ userId, stack }) => ({
-    updateOne: { filter: { _id: userId, atTable: true }, update: { $set: { tableStack: stack } } },
+  await User.bulkWrite(entries.map(({ userId, session, stack }) => ({
+    updateOne: { filter: { _id: userId, atTable: true, tableSession: session }, update: { $set: { tableStack: stack } } },
   })));
 }
 
-// Move a table stack back to the balance.
-async function cashOut(userId, stack) {
+// Move a table stack back to the balance. Only the sitting it belongs to, so it can never pay twice.
+async function cashOut(userId, stack, session) {
   const u = await User.findOneAndUpdate(
-    { _id: userId, atTable: true },
-    { $inc: { balance: stack }, $set: { atTable: false, tableStack: 0 } },
+    { _id: userId, atTable: true, tableSession: session },
+    { $inc: { balance: stack }, $set: { atTable: false, tableStack: 0, tableSession: null } },
     { new: true },
   );
   return u ? publicUser(u) : null;
@@ -57,7 +59,7 @@ async function refill(userId) {
 async function recover() {
   const res = await User.updateMany(
     { atTable: true },
-    [{ $set: { balance: { $add: ['$balance', '$tableStack'] }, tableStack: 0, atTable: false } }],
+    [{ $set: { balance: { $add: ['$balance', '$tableStack'] }, tableStack: 0, atTable: false, tableSession: null } }],
   );
   return res.modifiedCount;
 }

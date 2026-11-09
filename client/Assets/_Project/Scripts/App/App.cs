@@ -346,7 +346,8 @@ namespace WarPoker.Main
                     {
                         var m = payload != null ? payload.ToObject<RemovedMsg>() : null;
                         string reason = m != null ? m.reason : null;
-                        if (Current == GameScreen) GameScreen.ExitToLobby(Strings.RemovedReason(reason));
+                        // Let the hand finish on screen (ranking, payouts), then explain what happened.
+                        if (Current == GameScreen) GameScreen.OnRemoved(reason);
                         break;
                     }
 

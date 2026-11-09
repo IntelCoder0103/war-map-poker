@@ -53,6 +53,10 @@ namespace WarPoker.Core
         public const string OpenCamp = "Open camp";
         public const string Reconnecting = "Connection lost - reconnecting...";
         public const string Hand = "Hand #";
+        public const string BackToLobby = "Back to barracks";
+        public const string DefeatedTitle = "Defeated";
+        public const string RemovedTitle = "Retreat";
+        public const string BrokeDetail = "Your army was wiped out in battle.\nRecruit fresh soldiers in the barracks and fight again!";
 
         public static string ErrorText(string code)
         {
@@ -68,6 +72,7 @@ namespace WarPoker.Core
                 case "UNKNOWN_LEVEL": return "That battlefield does not exist.";
                 case "INSUFFICIENT_BALANCE": return "Your army is too small for this battlefield.";
                 case "ALREADY_SEATED": return "You are already seated at a table.";
+                case "LEAVING_TABLE": return "Your last battle is still being decided. Try again in a moment.";
                 case "NOT_SEATED": return "You are not seated.";
                 case "NOT_YOUR_TURN": return "It is not your turn.";
                 case "ILLEGAL_ACTION": return "That move is not allowed now.";
@@ -85,6 +90,7 @@ namespace WarPoker.Core
             {
                 case "broke": return "Your army was wiped out. Back to the barracks!";
                 case "timeout": return "You were away too long; your troops returned to the barracks.";
+                case "idle": return "You were idle too long; your troops returned to the barracks.";
                 case "left": return "You left the table.";
                 default: return "You were removed from the table.";
             }

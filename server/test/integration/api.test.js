@@ -42,7 +42,7 @@ test('rooms list and joining rules', async () => {
   const { token } = (await api(srv, 'POST', '/auth/register', { username: 'joiner', password: 'secret1' })).body;
   const s = await connect(srv, token);
   expect(await emit(s, 'room:join', { level: 'nope' })).toEqual({ ok: false, error: 'UNKNOWN_LEVEL' });
-  expect(await emit(s, 'room:join', { level: 'soldier' })).toEqual({ ok: false, error: 'INSUFFICIENT_BALANCE' });
+  expect(await emit(s, 'room:join', { level: 'captain' })).toEqual({ ok: false, error: 'INSUFFICIENT_BALANCE' });
   const stateP = new Promise((r) => s.once('table:state', r));
   expect(await emit(s, 'room:join', { level: 'recruit' })).toEqual({ ok: true, tableId: 'recruit-1' });
   const state = await stateP;

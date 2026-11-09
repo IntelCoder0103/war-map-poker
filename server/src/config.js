@@ -17,13 +17,18 @@ module.exports = {
   nextHandDelayMs: Number(env.NEXT_HAND_DELAY_MS || 4500),
   showdownDelayMs: Number(env.SHOWDOWN_DELAY_MS || 8000),
   disconnectGraceMs: Number(env.DISCONNECT_GRACE_MS || 60000),
+  // Missed turns in a row before an idle player is sent back to the lobby.
+  idleTimeouts: Number(env.IDLE_TIMEOUTS || 3),
+  // Once 2+ players pressed Ready, how long the others have before they go back to the lobby.
+  readyTimeoutMs: Number(env.READY_TIMEOUT_MS || 30000),
 
   // One "room" per level. Each level can have several tables.
+  // Blinds are 1% / 2% of the buy-in, so every room starts players with 100 big blinds.
   levels: [
     { id: 'recruit', name: 'Recruit', buyIn: 1000, smallBlind: 10, bigBlind: 20 },
-    { id: 'soldier', name: 'Soldier', buyIn: 5000, smallBlind: 50, bigBlind: 100 },
-    { id: 'captain', name: 'Captain', buyIn: 20000, smallBlind: 200, bigBlind: 400 },
-    { id: 'general', name: 'General', buyIn: 100000, smallBlind: 1000, bigBlind: 2000 },
-    { id: 'king', name: 'King', buyIn: 500000, smallBlind: 5000, bigBlind: 10000 },
+    { id: 'soldier', name: 'Soldier', buyIn: 2000, smallBlind: 20, bigBlind: 40 },
+    { id: 'captain', name: 'Captain', buyIn: 5000, smallBlind: 50, bigBlind: 100 },
+    { id: 'general', name: 'General', buyIn: 10000, smallBlind: 100, bigBlind: 200 },
+    { id: 'king', name: 'King', buyIn: 50000, smallBlind: 500, bigBlind: 1000 },
   ],
 };
