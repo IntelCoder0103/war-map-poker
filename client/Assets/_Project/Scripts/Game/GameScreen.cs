@@ -24,8 +24,8 @@ namespace WarPoker.Game
         const int MaxSeats = 8;
         static readonly Vector2 Center = new Vector2(0, 30);
         const float RadiusX = 720f, RadiusY = 330f;
-        static readonly Vector2 BoardCardSize = new Vector2(96, 134);
-        static readonly Vector2 DeckPos = new Vector2(-345, 40);
+        static readonly Vector2 BoardCardSize = new Vector2(116, 162);
+        static readonly Vector2 DeckPos = new Vector2(-420, 40);
         static readonly Vector2 PotPos = new Vector2(0, -60);
         static readonly Vector2 ActionBarPos = new Vector2(560, -482);
 
@@ -105,7 +105,7 @@ namespace WarPoker.Game
             // Board cards with empty slots.
             for (int i = 0; i < 5; i++)
             {
-                Vector2 pos = Center + new Vector2(10 + (i - 2) * 106f, 10);
+                Vector2 pos = Center + new Vector2(10 + (i - 2) * 124f, 10);
                 var slot = UIKit.Deco(_board, "Slot" + i, ProcSprites.RoundedRect(10, 3, 0.4f), new Color(1f, 1f, 1f, 0.22f));
                 UIKit.Center(slot.rectTransform, pos, BoardCardSize);
                 _boardSlots[i] = slot;
@@ -176,7 +176,7 @@ namespace WarPoker.Game
         }
 
         /// <summary>Bet spot: just outside the camp, on the line toward the pot.</summary>
-        const float RankRowH = 72f, RankRowGap = 8f, RankW = 820f;
+        const float RankRowH = 86f, RankRowGap = 8f, RankW = 900f;
 
         void BuildRankBoard()
         {
@@ -218,12 +218,12 @@ namespace WarPoker.Game
                 UIKit.Place(row.Hand.rectTransform, new Vector2(0, 0.5f), new Vector2(390, 0), new Vector2(210, RankRowH));
                 row.Hand.horizontalOverflow = HorizontalWrapMode.Overflow;
                 row.Cards = new CardView[5];
-                var cardSize = new Vector2(42, 58);
+                var cardSize = new Vector2(54, 75);
                 for (int c = 0; c < 5; c++)
                 {
                     var card = CardView.Create(bg.transform, "Card" + c, cardSize);
                     card.Rect.anchorMin = card.Rect.anchorMax = new Vector2(1f, 0.5f);
-                    card.Rect.anchoredPosition = new Vector2(-254 + c * 46, 0);
+                    card.Rect.anchoredPosition = new Vector2(-300 + c * 58, 0);
                     row.Cards[c] = card;
                 }
                 _rankRows.Add(row);

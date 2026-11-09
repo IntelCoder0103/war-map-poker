@@ -21,7 +21,7 @@ namespace WarPoker.Game
     public class SeatView : MonoBehaviour
     {
         public static readonly Vector2 CampSize = new Vector2(260, 150);
-        public static readonly Vector2 CardSize = new Vector2(62, 86);
+        public static readonly Vector2 CardSize = new Vector2(78, 108);
         /// <summary>Bet marker on the battlefield: a squad standing on the number plank.</summary>
         public static readonly Vector2 BetSize = new Vector2(96, 72);
 
@@ -132,14 +132,18 @@ namespace WarPoker.Game
             _timer.fillClockwise = false;
 
             // Dealer button and blind badge (top-left corner).
-            _dealer = UIKit.Deco(c, "Dealer", ProcSprites.Disc(64, 0.14f), Color.white);
-            UIKit.Center(_dealer.rectTransform, new Vector2(-136, 72), new Vector2(44, 44));
-            var dt = UIKit.Text(_dealer.transform, "D", Strings.Get("DealerMark"), 24, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // Dealer button and blind chips: poker chips with a notched rim.
+            _dealer = UIKit.Deco(c, "Dealer", ProcSprites.PokerChip(new Color(0.97f, 0.95f, 0.9f), new Color(0.80f, 0.14f, 0.12f), Color.white), Color.white);
+            UIKit.Center(_dealer.rectTransform, new Vector2(-140, 74), new Vector2(54, 54));
+            UIKit.AddShadow(_dealer, 2f, 0.45f);
+            var dt = UIKit.Text(_dealer.transform, "D", Strings.Get("DealerMark"), 30, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(dt.rectTransform);
-            _blind = UIKit.Deco(c, "Blind", ProcSprites.Disc(64, 0.14f), Theme.Gold);
-            UIKit.Center(_blind.rectTransform, new Vector2(-138, 22), new Vector2(44, 44));
-            _blindText = UIKit.Text(_blind.transform, "Text", "", 18, Theme.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _blind = UIKit.Deco(c, "Blind", null, Color.white);
+            UIKit.Center(_blind.rectTransform, new Vector2(-142, 18), new Vector2(54, 54));
+            UIKit.AddShadow(_blind, 2f, 0.45f);
+            _blindText = UIKit.Text(_blind.transform, "Text", "", 21, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Stretch(_blindText.rectTransform);
+            UIKit.AddOutline(_blindText, 2f);
 
             // Bet spot on the battlefield (sibling on the board so it can sit outside the camp).
             var bet = UIKit.Rect("Bet" + name, board);
@@ -162,7 +166,7 @@ namespace WarPoker.Game
 
         static Vector2 CardHome(int i)
         {
-            return new Vector2(i == 0 ? 58f : 96f, -6f);
+            return new Vector2(i == 0 ? 52f : 98f, -14f);
         }
 
         public RectTransform CardRect(int i)
@@ -230,6 +234,9 @@ namespace WarPoker.Game
             bool sb = !waiting && s.sbSeat == seatIndex, bb = !waiting && s.bbSeat == seatIndex;
             _blind.gameObject.SetActive(sb || bb);
             _blindText.text = Strings.Get(bb ? "BigBlindMark" : "SmallBlindMark");
+            _blind.sprite = bb
+                ? ProcSprites.PokerChip(new Color(0.95f, 0.58f, 0.10f), new Color(0.72f, 0.30f, 0.05f), new Color(1f, 0.92f, 0.65f))   // big blind: orange-gold
+                : ProcSprites.PokerChip(new Color(0.20f, 0.52f, 0.92f), new Color(0.10f, 0.28f, 0.62f), new Color(0.85f, 0.93f, 1f));  // small blind: blue
             _readyBadge.gameObject.SetActive(waiting && seat.ready);
             _readyBadge.transform.localScale = Vector3.one;
 

@@ -166,6 +166,40 @@ namespace WarPoker.UI
         }
 
         /// <summary>Circle with a darker baked rim (for badges and buttons).</summary>
+        /// <summary>
+        /// A poker chip / dealer button: face colour, a rim with light notches around the edge,
+        /// an inner ring and soft top-light shading. Cached per colour pair.
+        /// </summary>
+        public static Sprite PokerChip(Color face, Color rim, Color notch)
+        {
+            string key = "chip_" + ColorUtility.ToHtmlStringRGB(face) + ColorUtility.ToHtmlStringRGB(rim);
+            Sprite cached;
+            if (TryGet(key, out cached)) return cached;
+            Color edge = new Color(0.12f, 0.08f, 0.05f, 1f);
+            return FromFn(key, 128, 128, (x, y) =>
+            {
+                float dx = x - 0.5f, dy = y - 0.5f;
+                float r = Mathf.Sqrt(dx * dx + dy * dy) * 2f; // 0 centre .. 1 edge
+                if (r > 1f) return Color.clear;
+                if (r > 0.94f) return edge;                                  // dark outline
+                float shade = 1.08f - 0.22f * (0.5f - dy) - 0.1f * r;        // light from the top
+                Color c;
+                if (r > 0.70f)
+                {
+                    // rim with 8 light notches
+                    float a = Mathf.Atan2(dy, dx) / (2f * Mathf.PI) + 0.5f;
+                    bool isNotch = Mathf.Repeat(a * 8f + 0.25f, 1f) < 0.32f;
+                    c = isNotch ? notch : rim;
+                }
+                else if (r > 0.64f) c = Color.Lerp(notch, rim, 0.35f);      // thin inner ring
+                else c = face;
+                c = new Color(Mathf.Clamp01(c.r * shade), Mathf.Clamp01(c.g * shade), Mathf.Clamp01(c.b * shade), 1f);
+                // glossy highlight
+                float hl = Mathf.Clamp01(1f - Vector2.Distance(new Vector2(x, y), new Vector2(0.38f, 0.72f)) / 0.22f);
+                return Color.Lerp(c, Color.white, hl * 0.25f);
+            }, 3);
+        }
+
         public static Sprite Disc(int size = 64, float rim = 0.12f)
         {
             return FromFn("disc_" + size + "_" + rim, size, size, (x, y) =>
