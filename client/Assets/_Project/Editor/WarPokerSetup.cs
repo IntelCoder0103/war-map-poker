@@ -95,7 +95,7 @@ namespace WarPoker.EditorTools
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         }
 
-        static void ApplyPlayerSettings()
+        internal static void ApplyPlayerSettings()
         {
             PlayerSettings.companyName = "WarPoker";
             PlayerSettings.productName = "War-Map Poker";
