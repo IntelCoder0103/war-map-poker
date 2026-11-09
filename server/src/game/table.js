@@ -57,7 +57,7 @@ class Table {
       connected: true, ghost: false, discTimer: null,
       timeouts: 0, // turns in a row that ran out; too many and the player goes back to the lobby
       leaveReason: null, // set when an all-in player leaves: they are paid when the hand ends
-      leaveAfterHand: false, // "retreat after this hand": fold on their turn, leave when the hand ends
+      leaveAfterHand: false, // retreat requested while holding cards: leave once they fold or the hand ends
     };
     this._updateReadyTimer(); // before broadcasting, so snapshots carry the countdown
     this._broadcast('playerJoined', { seat, username: user.username });
@@ -104,7 +104,7 @@ class Table {
       return null;
     }
 
-    if (this.hand && this.hand.players.has(seat)) {
+    if (p && !p.folded) {
       this._process(this.hand.forceFold(seat));
       // Folding may have ended the hand, and a broke player is already removed then.
       if (this.seats[seat] !== s) return null;
@@ -120,21 +120,22 @@ class Table {
     return this._removed(seat, s, stack, reason);
   }
 
-  // "Retreat after this hand": fold when the player's turn comes and leave when the hand ends.
-  // Not in a hand right now: leave at once. on=false cancels. Returns { leftNow, user }.
+  // Retreat. Not holding cards (between hands, or already folded): leave at once.
+  // Holding cards: mark the seat; the player keeps playing and leaves as soon as they fold
+  // (by choice or on the turn timer) or when the hand ends. on=false cancels. Returns { leftNow, user }.
   async setLeaveAfterHand(userId, on = true) {
     const seat = this._requireSeat(userId);
     const s = this.seats[seat];
-    const inHand = !!(this.hand && this.hand.players.has(seat));
-    if (on && !inHand) return { leftNow: true, user: await this.leave(userId, 'left') };
+    if (on && !this._holdsCards(seat)) return { leftNow: true, user: await this.leave(userId, 'left') };
     if (s.leaveAfterHand === !!on) return { leftNow: false };
     s.leaveAfterHand = !!on;
     this._broadcast('leaving', { seat, on: s.leaveAfterHand });
-    // Already their turn: fold right away instead of waiting for the timer.
-    if (on && this.hand && this.hand.turnSeat === seat) {
-      this._process(this.hand.act(seat, 'fold', undefined, true));
-    }
     return { leftNow: false };
+  }
+
+  _holdsCards(seat) {
+    const p = this.hand && this.hand.players.get(seat);
+    return !!(p && !p.folded);
   }
 
   setConnected(userId, connected) {
@@ -286,23 +287,24 @@ class Table {
       this._broadcast(e.type, e.data, e.state);
     }
     if (!this.hand) return;
-    if (this.hand.isComplete) this._finishHand();
-    else this._armTurnTimer();
+    if (this.hand.isComplete) {
+      this._finishHand(); // also removes players who asked to retreat
+      return;
+    }
+    // A player who asked to retreat just folded: they go now, the hand plays on without them.
+    for (let seat = 0; seat < this.seats.length; seat++) {
+      const s = this.seats[seat];
+      if (s && !s.ghost && s.leaveAfterHand && !this._holdsCards(seat)) {
+        s.leaveAfterHand = false; // handled here, once
+        this.leave(s.userId, 'left').catch((e) => this.hooks.log('retreat after fold failed', e));
+      }
+    }
+    if (this.hand && !this.hand.isComplete) this._armTurnTimer();
   }
 
   _armTurnTimer() {
     const seat = this.hand.turnSeat;
     if (seat === -1) return;
-    const leaving = this.seats[seat];
-    if (leaving && !leaving.ghost && leaving.leaveAfterHand) {
-      // They asked to retreat after this hand: fold as soon as their turn comes.
-      setImmediate(() => {
-        if (this.hand && this.hand.turnSeat === seat && this.seats[seat] === leaving && leaving.leaveAfterHand) {
-          this._process(this.hand.act(seat, 'fold', undefined, true));
-        }
-      });
-      return;
-    }
     this.turnTimer = setTimeout(() => {
       this.turnTimer = null;
       if (!this.hand || this.hand.turnSeat !== seat) return;

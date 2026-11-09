@@ -119,7 +119,7 @@
   "Error.other": "Error: {0}",
   "CancelRetreat": "Stay",
   "Tag.leaving": "RETREATING",
-  "RetreatAfterHand": "You will retreat when this hand ends",
+  "RetreatAfterHand": "You will retreat when you fold or this hand ends",
   "CreatePrivate": "Private room",
   "JoinWithCode": "Join with code",
   "CreatePrivateTitle": "Private room",

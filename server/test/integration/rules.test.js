@@ -116,33 +116,81 @@ test('a late save from an earlier sitting cannot touch a newer one', async () =>
   expect((await User.findOne({ username: 'sitter' })).balance).toBe(2500);
 });
 
-test('"retreat after this hand" folds on the player\'s turn and leaves when the hand ends', async () => {
-  srv = await start({ turnTimeMs: 30000, nextHandDelayMs: 2000 });
-  const a = await player('later_a');
-  const b = await player('later_b');
-  for (const p of [a, b]) await emit(p.socket, 'room:join', { level: 'recruit' });
-  // Not in a hand yet: leaves at once.
-  const c = await player('later_c');
-  await emit(c.socket, 'room:join', { level: 'recruit' });
-  expect(await emit(c.socket, 'table:leaveAfterHand', { on: true })).toEqual({ ok: true, leftNow: true, balance: 5000 });
+// Three players sit down and the first hand starts. Returns them with whoever is on turn first.
+async function threeInAHand(prefix) {
+  const ps = [];
+  for (const n of ['a', 'b', 'c']) ps.push(await player(`${prefix}_${n}`));
+  for (const p of ps) await emit(p.socket, 'room:join', { level: 'recruit' });
+  for (const p of ps) await emit(p.socket, 'table:ready');
+  await until(() => ps.some((p) => p.state && p.state.legal));
+  return ps;
+}
+const onTurn = (ps) => ps.find((p) => p.state && p.state.legal);
+const checkOrCall = (p) => emit(p.socket, 'table:action', { type: p.state.legal.canCheck ? 'check' : 'call' });
 
+test('retreat with no cards in hand leaves at once', async () => {
+  srv = await start({ turnTimeMs: 30000, nextHandDelayMs: 2000 });
+  const a = await player('solo_a');
+  await emit(a.socket, 'room:join', { level: 'recruit' });
+  // Between hands.
+  expect(await emit(a.socket, 'table:leaveAfterHand', { on: true })).toEqual({ ok: true, leftNow: true, balance: 5000 });
+
+  // Already folded in a running hand.
+  const ps = await threeInAHand('now');
+  const folder = onTurn(ps);
+  await emit(folder.socket, 'table:action', { type: 'fold' });
+  const r = await emit(folder.socket, 'table:leaveAfterHand', { on: true });
+  expect(r).toMatchObject({ ok: true, leftNow: true });
+  expect(typeof r.balance).toBe('number');
+  expect(folder.removed).toEqual(['left']);
+  for (const p of [a, ...ps]) p.socket.close();
+});
+
+test('retreat while holding cards: keep playing, leave the moment you fold', async () => {
+  srv = await start({ turnTimeMs: 30000, nextHandDelayMs: 2000 });
+  const ps = await threeInAHand('fold');
+  const first = onTurn(ps);
+  const leaver = ps.find((p) => p !== first);
+  expect(await emit(leaver.socket, 'table:leaveAfterHand', { on: true })).toEqual({ ok: true, leftNow: false, balance: null });
+  await until(() => first.events.some((e) => e.type === 'leaving'));
+  expect(first.state.seats[leaver.state.yourSeat].leavingAfterHand).toBe(true);
+
+  // No automatic fold: the leaver still gets their turn and can play it.
+  while (!leaver.state.legal) {
+    const p = onTurn(ps);
+    await checkOrCall(p);
+    await until(() => onTurn(ps) && onTurn(ps) !== p);
+  }
+  expect(leaver.removed).toEqual([]);
+  await emit(leaver.socket, 'table:action', { type: 'fold' });
+  await until(() => leaver.removed.length > 0);
+  expect(leaver.removed).toEqual(['left']);
+  // The hand goes on for the other two.
+  const rest = ps.filter((p) => p !== leaver);
+  expect(rest.every((p) => !p.events.some((e) => e.type === 'handEnded'))).toBe(true);
+  await wait(100);
+  expect(await User.countDocuments({ username: leaver.name, atTable: true })).toBe(0);
+  for (const p of ps) p.socket.close();
+});
+
+test('retreat while holding cards and never folding: leave when the hand ends', async () => {
+  srv = await start({ turnTimeMs: 30000, nextHandDelayMs: 2000 });
+  const a = await player('end_a');
+  const b = await player('end_b');
+  for (const p of [a, b]) await emit(p.socket, 'room:join', { level: 'recruit' });
   for (const p of [a, b]) await emit(p.socket, 'table:ready');
   await until(() => (a.state && a.state.legal) || (b.state && b.state.legal));
   const [actor, other] = a.state.legal ? [a, b] : [b, a];
-  // The OTHER player (not on turn) asks to leave after the hand: nothing happens yet...
   expect(await emit(other.socket, 'table:leaveAfterHand', { on: true })).toEqual({ ok: true, leftNow: false, balance: null });
-  await until(() => actor.events.some((e) => e.type === 'leaving'));
-  expect(actor.state.seats[other.state.yourSeat].leavingAfterHand).toBe(true);
-  expect(other.removed).toEqual([]);
-  // ...the actor calls, and on the other player's turn they fold automatically.
-  await emit(actor.socket, 'table:action', { type: actor.state.legal.canCheck ? 'check' : 'call' });
-  await until(() => actor.events.some((e) => e.type === 'action' && e.data.seat === other.state.yourSeat && e.data.type === 'fold'));
+  // The other player folds, so the leaver wins the hand and goes before the next one.
+  await emit(actor.socket, 'table:action', { type: 'fold' });
   await until(() => other.removed.length > 0);
   expect(other.removed).toEqual(['left']);
+  expect(other.events.some((e) => e.type === 'handEnded')).toBe(true);
   await wait(100);
   expect(await total([a.name, b.name])).toBe(10000);
-  expect(await User.countDocuments({ username: other.name, atTable: true })).toBe(0);
-  for (const p of [a, b, c]) p.socket.close();
+  expect((await User.findOne({ username: other.name })).balance).toBeGreaterThan(5000);
+  for (const p of [a, b]) p.socket.close();
 });
 
 test('"retreat after this hand" can be cancelled', async () => {

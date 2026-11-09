@@ -81,7 +81,7 @@ namespace WarPoker.Core
             { "Leave", "Retreat" },
             { "CancelRetreat", "Stay" },
             { "Tag.leaving", "RETREATING" },
-            { "RetreatAfterHand", "You will retreat when this hand ends" },
+            { "RetreatAfterHand", "You will retreat when you fold or this hand ends" },
             { "TableInfo", "{0}   Blinds {1}/{2}" },
             { "Hand", "Hand #{0}" },
             { "Ready", "Ready for battle" },

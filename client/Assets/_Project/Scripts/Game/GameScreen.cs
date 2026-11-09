@@ -144,8 +144,8 @@ namespace WarPoker.Game
             _potText.horizontalOverflow = HorizontalWrapMode.Overflow;
 
             // Top-left: retreat + table info.
-            // Retreat toggles "leave after this hand" during a hand (fold on your turn, leave when it ends);
-            // outside a hand it leaves at once.
+            // Retreat: with no cards in hand (between hands, or folded) it leaves at once. Holding cards, it marks
+            // you as retreating: you keep playing and leave as soon as you fold or the hand ends. Tap again to stay.
             _leaveButton = UIKit.Button(_board, "Leave", Strings.Leave, new Vector2(190, 64), Theme.Leather, Theme.ParchmentLight, 28, OnLeave);
             UIKit.Center((RectTransform)_leaveButton.transform, new Vector2(-835, 490), new Vector2(190, 64));
             _info = UIKit.Text(_board, "Info", "", 24, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
@@ -687,7 +687,7 @@ namespace WarPoker.Game
                 if (!ok) { App.Toast(Strings.ErrorText(error)); return; }
                 if (ack.Value<bool>("leftNow"))
                 {
-                    // Not in a hand: left at once.
+                    // No cards in hand: left at once.
                     _leaving = true;
                     var bal = ack["balance"];
                     if (bal != null && bal.Type == JTokenType.Integer && App.Session.User != null)
