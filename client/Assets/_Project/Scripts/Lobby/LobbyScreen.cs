@@ -56,20 +56,22 @@ namespace WarPoker.Lobby
             // Balance with a little troop icon.
             var icon = UIKit.Deco(bar.transform, "TroopIcon", TroopArt.Soldier(), Color.white);
             icon.preserveAspect = true;
-            AnchorCenter(icon.rectTransform, -150, 0, 64 * TroopArt.FrameScale, 64 * TroopArt.FrameScale);
+            // The frame has room above the figure (spear): lift it so the soldier sits centred in the bar.
+            AnchorCenter(icon.rectTransform, -110, 14, 56 * TroopArt.FrameScale, 56 * TroopArt.FrameScale);
             _balance = UIKit.Text(bar.transform, "Balance", "", 46, Theme.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
-            AnchorCenter(_balance.rectTransform, 60, 6, 340, 64);
+            AnchorCenter(_balance.rectTransform, 90, 12, 300, 60);
             var balLabel = UIKit.Text(bar.transform, "BalanceLabel", "soldiers", 22, Theme.InkSoft, TextAnchor.MiddleLeft, FontStyle.Italic);
-            AnchorCenter(balLabel.rectTransform, 60, -36, 340, 30);
+            AnchorCenter(balLabel.rectTransform, 90, -26, 300, 30);
 
             _refill = UIKit.Button(bar.transform, "Refill", Strings.Refill, new Vector2(250, 64), Theme.Forest, Theme.ParchmentLight, 26, OnRefill);
-            AnchorRight((RectTransform)_refill.transform, -230, 14, 250, 64);
+            // Refill and Logout share one row; the refill note sits under the refill button.
+            AnchorRight((RectTransform)_refill.transform, -230, 10, 250, 64);
             _refillInfo = UIKit.Text(bar.transform, "RefillInfo", "", 20, Theme.InkSoft, TextAnchor.MiddleCenter, FontStyle.Italic);
-            AnchorRight(_refillInfo.rectTransform, -230, -40, 300, 30);
+            AnchorRight(_refillInfo.rectTransform, -205, -38, 300, 28);
 
             var logout = UIKit.Button(bar.transform, "Logout", Strings.Logout, new Vector2(170, 64), Theme.Leather, Theme.ParchmentLight, 26,
                 () => App.Logout(null));
-            AnchorRight((RectTransform)logout.transform, -30, 0, 170, 64);
+            AnchorRight((RectTransform)logout.transform, -40, 10, 170, 64);
 
             // Room list
             var header = UIKit.Text(Root, "Header", Strings.ChooseBattlefield, 46, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
