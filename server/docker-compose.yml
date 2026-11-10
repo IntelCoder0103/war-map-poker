@@ -1,34 +1,44 @@
-# Local dev and tests.
-#   docker compose up -d mongo        -> MongoDB on localhost:27017
-#   docker compose up server          -> server on localhost:3000 (Node 16.2)
-#   docker compose run --rm test      -> all tests on Node 16.2
-# Versions follow the client's requirements: Node 16.2, MongoDB 4.2.
+# War-Map Poker server + MongoDB. See README.md for the full guide.
+#   docker compose build                    -> build the images (once, needs internet)
+#   docker compose up -d                    -> MongoDB + server on http://localhost:3000 (runs offline after the build)
+#   docker compose logs -f server           -> follow the server log
+#   docker compose run --rm test            -> all tests
+#   docker compose run --rm bots            -> 3 bots join the Recruit room
+# Versions follow the project's requirements: Node 16.2, MongoDB 4.2.
 services:
   mongo:
     image: mongo:4.2
-    ports: ["127.0.0.1:27017:27017"]  # local only: no password is set
+    restart: unless-stopped
+    ports: ["127.0.0.1:27017:27017"]  # this machine only: no database password is set
     volumes: [mongo42-data:/data/db]
 
   server:
-    image: node:16.2.0-alpine
-    working_dir: /app
-    command: sh -c "npm ci --omit=dev && node src/index.js"
+    build: { context: ., target: app }
+    image: war-map-poker-server
+    restart: unless-stopped
     environment:
       MONGO_URL: mongodb://mongo:27017/warpoker
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
-    ports: ["3000:3000"]
-    volumes: [./:/app, /app/node_modules]
+    ports: ["${SERVER_PORT:-3000}:3000"]
+    volumes: ["./config.json:/app/config.json:ro"]  # edit config.json, then: docker compose restart server
     depends_on: [mongo]
 
   test:
-    image: node:16.2.0-alpine
-    working_dir: /app
-    command: sh -c "npm ci && npx jest --runInBand"
+    build: { context: ., target: dev }
+    image: war-map-poker-server-dev
+    command: npx jest --runInBand
     environment:
       MONGO_URL: mongodb://mongo:27017/warpoker_test
-    volumes: [./:/app, /app/node_modules]
+    volumes: [./:/app, /app/node_modules]  # your current code, with the image's node_modules
     depends_on: [mongo]
+
+  bots:
+    build: { context: ., target: dev }
+    image: war-map-poker-server-dev
+    command: node tools/bots.js --url http://server:3000 --level recruit --count 3
+    volumes: [./:/app, /app/node_modules]
+    depends_on: [server]
+    profiles: [tools]  # not started by "up"; run it with "docker compose run --rm bots"
 
 volumes:
   mongo42-data:
-  mongo-data: # MongoDB 6 data from before the switch to 4.2 (kept as a backup; 4.2 can't open it)

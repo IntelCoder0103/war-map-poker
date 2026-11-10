@@ -1,139 +1,287 @@
-# War-Map Poker — Unity client
+# War-Map Poker — Android app (Unity)
 
-Texas Hold'em on an old parchment war map. Chips are soldiers. Android, landscape.
-The server (Node, `../server`) is the only authority; this client only renders snapshots and sends the player's choices.
-The contract is `../docs/protocol.md`.
+Texas Hold'em on an old war map, where you bet soldiers instead of chips. Android only, in landscape. The app is built with **Unity 2022.1.22f1**.
 
-## Requirements
-- Unity **2022.1.22f1** (the client's required version) with **Android Build Support** (SDK/NDK + OpenJDK) from Unity Hub. The project also opens in 2022.3 LTS, but that upgrades it; don't commit the upgraded ProjectVersion.txt / packages-lock.json.
-- Internet access the first time you open the project: packages are resolved from the Unity registry and from GitHub
-  (`com.itisnajim.socketiounity`, a git package, so **git must be installed and on PATH**).
+The app only shows what the server sends and passes on what the player chose. The server, in `../server`, runs the game.
 
-## First open
-1. Unity Hub → *Add project from disk* → select this `client/` folder → open with 2022.1.22f1.
-2. Wait for package import and the script compile to finish.
-   (`ProjectSettings/` only contains `ProjectVersion.txt`; Unity creates the rest with defaults.)
-3. Menu **WarPoker → Setup Project**. It:
-   - creates `Assets/_Project/Scenes/Main.unity` (a camera + a `Bootstrap` object) and puts it in Build Settings,
-   - sets Android player settings: company `WarPoker`, product `War-Map Poker`, package `com.warpoker.game`,
-     IL2CPP, ARM64 only, min API 24, landscape only, internet permission, *Allow downloads over HTTP* = Always (dev).
-   The setup also runs automatically once if `Main.unity` doesn't exist yet. Running it again is safe.
-4. Menu **WarPoker → Switch Platform To Android** (or File → Build Settings → Android → Switch Platform).
-5. Open `Main.unity` and press **Play**.
+- **Server guide:** [../server/README.md](../server/README.md)
+- **Message format:** [../docs/protocol.md](../docs/protocol.md)
+- **Changing wording, art and settings without code:** [../docs/customizing.md](../docs/customizing.md)
 
-## Architecture (short)
-- **One scene.** `Bootstrap` creates the `App` singleton, which builds *all* UI from code (uGUI, legacy `Text`
-  with the built-in `LegacyRuntime.ttf`, no TextMeshPro, no prefabs) and switches three panels:
-  **Login → Lobby → Game**. There are no separate scenes. If the Bootstrap object is missing, a
-  `[RuntimeInitializeOnLoadMethod]` fallback starts the app anyway.
-- Canvas: Screen Space Overlay, CanvasScaler 1920×1080, match 0.5, safe-area aware. The game board is a fixed
-  1920×1080 design rect scaled to fit any aspect ratio.
-- `Scripts/Core` (assembly **WarPoker.Core**, no Unity/3rd-party deps): troop breakdown, card parsing, seat rotation,
-  refill rule, quick-raise math, all UI strings. Covered by EditMode tests.
-- `Scripts/Net`: `ApiClient` (UnityWebRequest + Newtonsoft), `SocketClient` (SocketIOUnity), DTOs, `MainThread` dispatcher.
-  All socket callbacks and acks are posted to the main thread through one queue, so server order is kept.
-- `Scripts/Game`: `GameScreen` keeps an event queue. `table:event` → play the animation for `type` from `data`, then render
-  `state`. `table:state` → cancel animations, clear the queue, render. The queue speeds up when it grows (≥2: 1.7×, ≥5: 3×)
-  and skips animations entirely when more than 8 events are waiting. Gaps in `seq` trigger `table:sync`.
-- `Scripts/FX`: own coroutine tween helper (`Tween`, `Ease`) instead of DOTween, and `FxLayer` (pooled Images for
-  marching troops, flying cards, UI "particles", flash/shake, victory banner).
+---
 
-## Server address
-- Default: `http://localhost:3000` in the Editor, `http://10.0.2.2:3000` on devices (the Android emulator's alias for
-  your PC).
-- The login screen has an editable **Server** field (saved in PlayerPrefs). For a real phone use your PC's LAN IP,
-  e.g. `http://192.168.1.20:3000`, or a public address for 4G.
-- Optional: ship a different default with `Assets/_Project/Resources/config.json`:
-  `{ "serverUrl": "http://192.168.1.20:3000" }`.
+## Contents
+1. [Try it on a phone (no Unity needed)](#1-try-it-on-a-phone-no-unity-needed)
+2. [Quick start for developers](#2-quick-start-for-developers)
+3. [The WarPoker menu](#3-the-warpoker-menu)
+4. [Building the APK](#4-building-the-apk)
+5. [Server address](#5-server-address)
+6. [Config files](#6-config-files)
+7. [Art you can replace](#7-art-you-can-replace)
+8. [Sound effects](#8-sound-effects)
+9. [How the code is organised](#9-how-the-code-is-organised)
+10. [Testing](#10-testing)
+11. [Before a store release](#11-before-a-store-release)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Unity 2022.1 on newer Linux](#13-unity-20221-on-newer-linux)
 
-### Cleartext HTTP (dev only)
-Android blocks plain `http://` by default. The setup script sets *Player Settings → Other → Allow downloads over HTTP*
-to **Always allowed** so REST works against a dev server. The Socket.IO WebSocket (`ws://`) uses .NET sockets and is not
-affected by that setting. **Production must use HTTPS/WSS** (`https://…`; SocketIOUnity then uses `wss://`) and the
-option should be set back to *Not allowed*.
+---
 
-## Build the APK
-File → Build Settings → Android → *Build* (or *Build And Run* with a phone connected, USB debugging on).
-Install manually with `adb install -r WarMapPoker.apk`.
+## 1. Try it on a phone (no Unity needed)
 
-## Testing with two (or more) clients
-- **ParrelSync** (https://github.com/VeriorPies/ParrelSync): add it via Package Manager → *Add package from git URL*
-  `https://github.com/VeriorPies/ParrelSync.git?path=/ParrelSync`, create a clone, open it in a 2nd Editor, log in with
-  a different user in each. (PlayerPrefs are per clone project, so tokens don't collide.)
-- Or Editor + phone/emulator: start the server, use your PC's LAN IP in the phone's Server field.
-- Only one socket per user: logging in with the same user elsewhere shows "opened on another device" on the first client.
-- Reconnect test: toggle airplane mode mid-hand. A "Connection lost - reconnecting..." banner appears; on reconnect the
-  server re-sends `table:state` (and the client also sends `table:sync`). A watchdog recreates the socket if no server
-  ping arrives for 60 s, and on app resume after >30 s of silence.
+1. Get the APK: [../demo/WarPoker-demo.apk](../demo/WarPoker-demo.apk), or `Builds/Android/WarPoker.apk` after a build.
+2. Install it.
+   - **Over USB:** turn on USB debugging on the phone, then run `adb install -r WarPoker-demo.apk`.
+   - **Without a computer:** copy the file to the phone, open it, and allow "Install unknown apps" for your file manager.
+3. Start a server (see the [server quick start](../server/README.md#1-quick-start-with-docker)), or use the demo server.
+4. In the app, check the **Server** field on the login screen (see [section 5](#5-server-address)). Then press **Register**, pick a room and press **March!**
+5. Need more players? Start bots on the server: `docker compose run --rm bots`.
 
-## EditMode tests
-Window → General → Test Runner → EditMode → Run All. Tests live in `Assets/_Project/Tests/Editor`
-(assembly `WarPoker.Tests.Editor`, needs `com.unity.test-framework`, already in the manifest).
+The phone needs Android 7.0 (API 24) or newer, on a 64-bit (ARM64) processor.
 
-## Art slots (drop-in, no code changes)
-Everything has a procedural placeholder. To replace it, put a sprite at the path below (import as
-**Texture Type: Sprite (2D and UI)**; the file name without extension is what matters).
+---
 
-| What | Path (under `Assets/_Project/Resources/`) | Recommended size |
-|---|---|---|
-| Card main art, per card | `Cards/Art/{code}.png` — e.g. `Cards/Art/Ah.png`, `Cards/Art/Td.png`, `Cards/Art/2c.png` (rank `23456789TJQKA` + suit `cdhs`) | 160×300 px (portrait, ~0.53 aspect, sides a multiple of 4 so phones can compress it; shown with preserve-aspect right of the strip) |
-| Card main art, fallback for all cards | `Cards/Art/default.png` | 160×300 px |
-| Card back | `Cards/back.png` | 256×360 px (fills the whole card; include your own rounded corners/border) |
-| Suit icons | `Cards/Suits/c.png`, `d.png`, `h.png`, `s.png` | 64×64 px, **white** silhouette on transparent (tinted red/black by code) |
-| Troop units | `Troops/spearman.png`, `archer.png`, `ranger.png`, `cavalry.png`, `knight.png` | 128×128 px, transparent, facing right (mirrored when marching left) |
-| Map background | `Map/background.png` | 1920×1080 px or larger (stretched to the screen) |
-| Compass rose | `Map/compass.png` | 256×256 px, transparent |
+## 2. Quick start for developers
 
-Lookup order for card art: `Cards/Art/{code}` → `Cards/Art/default` → procedural heraldic shield in the suit colour.
-Card layout: white rounded body; a narrow full-height strip on the **left** with the suit icon at the top and the rank at
-the bottom, a hairline divider, and the large picture. (The showdown ranking board uses a compact style instead: small
-suit in the corner, big rank in the middle.)
+### Install
+- **Unity Hub** with **Unity 2022.1.22f1**, plus the module **Android Build Support**. Tick **OpenJDK** and **Android SDK & NDK Tools** under it.
+- **git**, on your PATH. Unity fetches the socket library from GitHub (`com.itisnajim.socketiounity`).
+- Internet access the first time you open the project, so Unity can download packages.
 
-The 52 placeholder pictures in `Cards/Art/` are drawn by `client/Tools/make_card_art.py` from the game's own art: each
-suit is an army in its own colour; 2–10 show that many soldiers, J/Q/K a soldier with a star / small crown / big crown,
-A a shield with the suit. Replace any file with real art, or edit and rerun the script (needs Pillow and numpy).
+Use exactly 2022.1.22f1. A newer Unity opens the project but upgrades it, so don't commit the upgraded `ProjectSettings/ProjectVersion.txt` or `Packages/packages-lock.json`.
 
-## Sound effects (drop-in, no code changes)
-Clips live in `Assets/_Project/Resources/Audio/` as `{sound}_{n}.ogg`; the game picks one variant at random each time,
-so add `deal_5.ogg` for more variety or overwrite a file to change a sound. Loudness per sound is set in
-`Scripts/FX/Sfx.cs`. A speaker button in the lobby and at the table turns sound on and off (remembered on the device).
+### Open and play in the Editor
+1. Start a server on this computer: `cd server && docker compose up -d` (or `npm start`).
+2. In Unity Hub, choose **Add → Add project from disk**, select this `client/` folder, and open it with 2022.1.22f1. The first import takes a few minutes.
+3. Open `Assets/_Project/Scenes/Main.unity` and press **Play**.
+4. On the login screen, set **Server** to `http://localhost:3000`, then register.
+5. Optional: start bots so the table fills: `docker compose run --rm bots` in `server/`.
 
-| Sound | When |
+The field first shows `serverUrl` from `Resources/Config/game.json` (the demo server). Change it once to `http://localhost:3000`; the Editor remembers it. Before building for phones, check `serverUrl` (section 5).
+
+### Build an APK
+In the Unity menu bar, choose **WarPoker → Build Android APK**. The result is `Builds/Android/WarPoker.apk`. More options are in [section 4](#4-building-the-apk).
+
+---
+
+## 3. The WarPoker menu
+
+All project tools are in the **WarPoker** menu in Unity's menu bar.
+
+| Menu item | What it does |
 |---|---|
-| `click` | any button |
-| `shuffle`, `deal` | a new hand: shuffle, then one slide per card dealt |
-| `flip` | a card turns face up |
-| `check`, `fold` | a player checks / folds |
-| `march` | soldiers march (bets, blinds, the pot going to the winner) |
-| `allin` | someone goes all-in (sword clash) |
-| `ready`, `join`, `leave` | a player presses Ready (sword drawn), sits down, leaves |
-| `turn`, `tick` | your turn starts; each of your last 5 seconds |
-| `coins`, `win`, `lose`, `fall` | the pot is won; you won; you lost a hand you played to the end; a busted player's soldiers fall |
-| `notify` | an invite to a private room arrives |
+| **Setup Project** | Creates `Main.unity` if it's missing, and applies the Android settings: package `com.warpoker.game`, IL2CPP, ARM64, min API 24, landscape, internet permission, plain HTTP allowed. It runs once on its own on a fresh checkout, and running it again is safe. |
+| **Switch Platform To Android** | Same as File → Build Settings → Android → Switch Platform. |
+| **Build Android APK** | Builds `Builds/Android/WarPoker.apk`, signed with the debug key (fine for testing). |
+| **Build Desktop (Linux)** | Builds `Builds/Linux/WarPoker.x86_64`, a desktop copy for quick tests. Android settings are left alone. |
+| **Update Config Files** | Adds any missing keys to `Resources/Config/game.json`, `text.json` and `art.json`, with their default values. Your edits are kept. Run it after updates that add new text. |
+| **Export Card Preview** | Saves `Previews/cards_preview.png` (all card faces) and `Previews/cards_mock.png` (a table mock-up). |
+| **Export Map Preview** | Saves the drawn map and compass as PNGs in `Previews/`. Useful as a starting point for an artist. |
+| **Render Troop Sprites** | Re-renders the soldier animations in `Resources/Troops/` from the Asset Store pack "Mini Legion Footman PBR HP Polyart". The pack isn't in the repo because its licence doesn't allow sharing it; import it from the Asset Store first (*My Assets*). Not needed unless you change the soldier. |
 
-Soldiers (display only): one soldier type, sprite `Resources/Troops/soldier` (procedural fallback). An amount is drawn
-as a squad of 1–5 identical figures, one more per digit (1–9 → 1, 10–99 → 2, … 10,000+ → 5), next to the number.
+---
 
-## Notes / deviations
-- Built-in render pipeline (no URP): the client is pure uGUI, so URP 2D wasn't needed.
-- No DOTween (not cleanly on UPM): own `Tween` helper. No ParticleSystem (doesn't render in an overlay canvas):
-  UI-image particles.
-- No `CardArtSet` ScriptableObject asset (can't be authored without the Editor): art is found by the Resources naming
-  convention above.
-- Bets of the current street are shown at a "bet spot" in front of each camp; on `street` they march into the pot.
+## 4. Building the APK
 
-## Customizing
-Wording, art, client settings and server game settings live in config files, so most changes need no code. See [docs/customizing.md](../docs/customizing.md).
+**From the Editor:** WarPoker → Build Android APK, or File → Build Settings → Android → Build. "Build And Run" also installs it on a connected phone.
 
-## Unity 2022.1.22 on newer Linux (Ubuntu 23.10+, e.g. 24.04)
-Unity 2022.1 predates these distros; four things are needed (all done on the dev server):
-1. **libssl 1.1** for the bundled .NET 5 compiler ("No usable version of libssl was found"): copy
-   `libssl.so.1.1` + `libcrypto.so.1.1` (Ubuntu 20.04 package) to `Editor/Data/libssl1.1/` and start Unity with
-   that folder on `LD_LIBRARY_PATH` (the `unity-2022.1` launcher in `~/.local/bin` does this).
-2. **bee_backend wrapper** for the known hang at "Initial Asset Database Refresh" (Unity issue UUM-54803): rename
-   `Editor/Data/bee_backend` to `bee_backend_real` and put a small script in its place that drops `--stdin-canary`.
-3. **OpenJDK 8** in `PlaybackEngines/AndroidPlayer/OpenJDK` — 2022.1 rejects JDK 11 ("JDK not found").
-   Unity's build: `download_unity/open-jdk/open-jdk-linux-x64/jdk8u172-b11_4be8440c….zip`.
-4. **JKS debug keystore**: JDK 8 can't read the PKCS12 `~/.android/debug.keystore` written by newer Unity/JDKs;
-   convert it with `keytool -importkeystore … -deststoretype JKS` (keeps the same key).
-Windows and macOS don't need any of this. Unity 2022.1 targets Android API 30 at most.
+**From the command line** (no window; good for build machines):
+
+```bash
+# Windows: "C:\Program Files\Unity\Hub\Editor\2022.1.22f1\Editor\Unity.exe"
+# macOS:   /Applications/Unity/Hub/Editor/2022.1.22f1/Unity.app/Contents/MacOS/Unity
+# Linux:   ~/Unity/Hub/Editor/2022.1.22f1/Editor/Unity
+Unity -batchmode -quit -buildTarget Android -projectPath client \
+      -executeMethod WarPoker.EditorTools.AndroidBuild.BuildApk -logFile build.log
+```
+
+- The APK is written to `client/Builds/Android/WarPoker.apk` (about 22 MB).
+- A failed build exits with code 1; `build.log` says why. Search it for `error CS` (code errors) or `[WarPoker]`.
+- Close any Editor that has the project open first. Unity can't open one project twice.
+
+Other batch commands use the same pattern, with a different `-executeMethod`:
+
+| `-executeMethod` | `-buildTarget` |
+|---|---|
+| `WarPoker.EditorTools.AndroidBuild.BuildApk` | `Android` |
+| `WarPoker.EditorTools.DesktopBuild.BuildLinux` | `Linux64` |
+| `WarPoker.EditorTools.ConfigFiles.Update` | (none) |
+
+**Install it:**
+- `adb install -r client/Builds/Android/WarPoker.apk` (`-r` keeps the app's saved login).
+- Uninstall first if the phone has a build signed with a different key.
+
+**Update the demo APK in the repo:** copy the new build to `demo/WarPoker-demo.apk` and commit.
+
+---
+
+## 5. Server address
+
+The app connects to the address in the **Server** field on the login screen. The phone remembers it.
+
+The field starts out with the first one of these that exists:
+1. The address you typed earlier, saved on the phone.
+2. `serverUrl` in `Assets/_Project/Resources/Config/game.json`. It's currently `http://95.217.62.59:3456`, the demo server. **Change this before building for your own server.**
+3. In the Editor, `http://localhost:3000`. On a phone, `http://10.0.2.2:3000`, which is how the Android emulator reaches its host PC.
+
+| Server runs on | Address |
+|---|---|
+| This PC; playing in the Editor | `http://localhost:3000` |
+| This PC; Android emulator | `http://10.0.2.2:3000` |
+| This PC; real phone on the same Wi-Fi | `http://<PC's LAN IP>:3000`, for example `http://192.168.1.20:3000` |
+| An internet server | `http://<IP>:<port>`, or `https://your.domain` in production |
+
+You can type the address without `http://`; the app adds it.
+
+**Plain HTTP is allowed in development.** Setup Project sets *Player Settings → Other → Allow downloads over HTTP* to **Always allowed**. For release, use HTTPS (the app then uses secure WebSockets on its own) and set that option back to **Not allowed**.
+
+---
+
+## 6. Config files
+
+They're in `Assets/_Project/Resources/Config/`. Edit them, then rebuild; you don't need to change code. Every key is optional and falls back to its default. The full key list is in [../docs/customizing.md](../docs/customizing.md).
+
+| File | Holds |
+|---|---|
+| `game.json` | `serverUrl` (default server address), `showdownHoldSeconds` (how long the ranking board stays), `marchSeconds`, `winnerCrownSeconds`, `maxSquadFigures`, `wordingFile` |
+| `text.json` | Every text players see: buttons, titles, messages, error texts, hand names. Translate the app by editing it, or by copying it and pointing `wordingFile` at the copy. |
+| `art.json` | Where each image comes from: fonts, buttons and panels (with their 9-slice borders), the soldier animations, the map, the cards. You only need it when a new file's name or folder differs. |
+
+If you make the end-of-hand animations longer, also raise `showdownDelayMs` in `server/config.json`. Otherwise the next hand starts while they're still playing.
+
+---
+
+## 7. Art you can replace
+
+Drop a PNG at the same path, with the same name, and rebuild. No code changes are needed. Every image under `Resources/` is imported as a UI sprite automatically (`Editor/ArtImportRules.cs`). If an image is missing, the app draws a placeholder in code.
+
+| What | Path under `Assets/_Project/Resources/` | Size and notes |
+|---|---|---|
+| Card picture, per card | `Cards/Art/{rank}{suit}.png`. Ranks `2 3 4 5 6 7 8 9 T J Q K A`, suits `c d h s`, for example `Ah.png`, `Td.png`. | 160×300 px. Both sides must be a multiple of 4 so phones can compress them. |
+| Card picture for any card without its own | `Cards/Art/default.png` | 160×300 px |
+| Card back | `Cards/back.png` | 256×360 px; fills the whole card, so include the rounded corners. |
+| Suit icons | `Cards/Suits/c.png`, `d.png`, `h.png`, `s.png` | 64×64 px, **white** on transparent. The code tints them red or black. |
+| Soldier | `Troops/soldier.png` (icon) and `soldier_idle/_walk/_victory/_death.png` | Animations are one row of square frames; frame rate and scale are in `art.json`. |
+| Buttons, panels, ribbon, icons | `UI/*.png` | 9-slice borders are in `art.json`. |
+| Fonts | `Fonts/LilitaOne.ttf` (body), `Fonts/PottaOne.ttf` (titles) | Set in `art.json` |
+| Map background | `Map/background.png` | 1920×1080 or larger. Without it, the map is drawn in code. |
+| Compass | `Map/compass.png` | 256×256, transparent |
+
+**The card face:**
+- A white card with a narrow strip on the left: the suit icon at the top and the rank at the bottom.
+- A thin divider, then the picture.
+- The showdown ranking board uses a compact card instead: a small suit in the corner and a big rank in the middle.
+
+**The current card pictures are placeholders,** drawn by [Tools/make_card_art.py](Tools/make_card_art.py) from the game's own art:
+- Each suit is an army in its own colour.
+- 2 to 10 show that many soldiers.
+- J, Q and K show a soldier with a star, a small crown or a big crown.
+- A shows a shield.
+
+To redraw them after editing the script, run `python3 client/Tools/make_card_art.py`. It needs Pillow and numpy.
+
+Third-party art, fonts and sounds, with their licences, are listed in [CREDITS.md](CREDITS.md).
+
+---
+
+## 8. Sound effects
+
+The clips are in `Assets/_Project/Resources/Audio/`, named `{sound}_{n}.ogg`. Each time a sound plays, the app picks one of its variants at random.
+- **More variety:** add another variant, for example `deal_5.ogg`.
+- **A different sound:** overwrite the file.
+- **Loudness:** each sound's volume is set in `Scripts/FX/Sfx.cs`.
+
+A speaker button in the lobby, and next to Retreat at the table, turns sound on and off. The phone remembers the setting.
+
+| Sound | Plays when |
+|---|---|
+| `click` | Any button |
+| `shuffle`, `deal` | A hand starts: a shuffle, then a slide for each card dealt |
+| `flip` | A card turns face up |
+| `check`, `fold` | A player checks or folds |
+| `march` | Soldiers march: bets, blinds, the pot going to the winner |
+| `allin` | Someone goes all-in (sword clash) |
+| `ready`, `join`, `leave` | A player presses Ready (sword drawn), sits down, or leaves |
+| `turn`, `tick` | Your turn starts; each of your last 5 seconds |
+| `coins`, `win`, `lose`, `fall` | The pot is won; you won; you lost a hand you played to the end; a busted player's soldiers fall |
+| `notify` | An invite to a private room arrives |
+
+---
+
+## 9. How the code is organised
+
+**One scene, everything built in code:**
+- `Main.unity` holds a camera and a `Bootstrap` object. `Bootstrap` creates `App`, which builds all of the interface from code and switches between three screens: **Login → Lobby → Game**.
+- The interface uses uGUI, with no prefabs and no TextMeshPro.
+- The design size is 1920×1080. It scales to any screen and keeps clear of notches.
+
+| Folder (`Assets/_Project/Scripts/`) | What's there |
+|---|---|
+| `App/` | `App` (screens, socket events, toasts), `Bootstrap`, `Session` (login token, saved for auto-login), `GameSettings` (reads `game.json`) |
+| `Auth/` | Login and register screen, with the Server field |
+| `Lobby/` | Balance and refill, the room grid (3×2 squares), private rooms (create, join by code, invites) |
+| `Game/` | `GameScreen` (the table, event animations, showdown board), `SeatView` (a player's camp), `ActionBar` (Fold, Check/Call, Raise, All-in), `MapArt` (the map drawn in code) |
+| `Cards/` | `CardView` (a card), `CardArt` (finds pictures, with drawn fallbacks) |
+| `Troops/` | Soldier sprites and the squad shown for an amount |
+| `FX/` | `Tween` (small animation helper), `FxLayer` (flying cards, marching soldiers, flashes), `SpriteAnim`, `Sfx` (sound) |
+| `Net/` | `ApiClient` (REST), `SocketClient` (Socket.IO), `Dto` (message types), `ServerConfig` (server address), `MainThread` |
+| `UI/` | `UIKit` (builds buttons, texts, panels), `UISkin` and `ArtCatalog` (art lookup), `Theme` (colours), `Modal` (dialogs), `SoundToggle` |
+| `Core/` | Separate assembly with no Unity dependencies: wording (`Strings`), card codes, seat layout, raise maths, refill rule. Covered by tests. |
+| `../Editor/` | The WarPoker menu tools (section 3) |
+
+**How the table stays in sync with the server:**
+- `table:event` messages go into a queue. Each one plays its animation, then the app shows the snapshot that came with it, which is the truth.
+- `table:state` replaces everything at once (after joining or reconnecting).
+- When the queue gets long, animations speed up, and they're skipped if the app falls far behind.
+- A gap in event numbers makes the app ask the server for a fresh snapshot.
+- If the connection drops, a banner shows and the app reconnects on its own; the server then sends the full table again.
+
+---
+
+## 10. Testing
+
+**More than one player:**
+- **Editor + phone:** run the server on your PC, and on the phone use your PC's LAN IP (section 5).
+- **Bots:** `docker compose run --rm bots` in `server/` (see the [server guide](../server/README.md#7-bots-for-testing)).
+- **Two Editors:** add ParrelSync (`https://github.com/VeriorPies/ParrelSync.git?path=/ParrelSync` via Package Manager → Add package from git URL), open a clone, and log in as a different user in each.
+- **Desktop build:** WarPoker → Build Desktop (Linux), then run several copies.
+- One account can be connected once. Logging in elsewhere shows "opened on another device" on the first one.
+
+**Reconnects:** turn airplane mode on mid-hand, then off. A "Connection lost" banner shows, then the table comes back as it was.
+
+**Unit tests:** Window → General → Test Runner → EditMode → Run All. They're in `Assets/_Project/Tests/Editor` (wording, card codes, seat layout, raise maths, refill rule, soldier squad sizes).
+
+---
+
+## 11. Before a store release
+
+- [ ] **Signing:** the builds are signed with Unity's debug key. Create your own keystore in Player Settings → Publishing Settings, and **keep it safe**: updates must be signed with the same key. Don't commit it; `*.keystore` and `*.jks` are git-ignored. Then set `useCustomKeystore = true` in `Editor/AndroidBuild.cs`, or build from File → Build Settings.
+- [ ] **Version:** raise *Version* and *Bundle Version Code* in Player Settings for every upload. Setup Project starts them at 0.1.0 and 1.
+- [ ] **Server:** set `serverUrl` in `game.json` to your HTTPS address, and set *Allow downloads over HTTP* to **Not allowed**.
+- [ ] **Google Play** needs an `.aab` and a recent target API. Unity 2022.1 targets API 30 at most, and Play currently asks for newer, so a store release means moving to Unity 2022.3 LTS or later. The project opens there; test it fully afterwards.
+- [ ] **Placeholder art:** swap in the real card pictures, map and card back (section 7).
+
+---
+
+## 12. Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| "Can't reach the server" in the app | Check the Server field. On a phone, open `http://<address>/health` in the browser; it should show `{"ok":true}`. If not, check the IP, port and firewall (see the [server guide](../server/README.md#4-connecting-phones)). |
+| Package errors on first open (`com.itisnajim.socketiounity`) | git isn't installed or isn't on the PATH. Install git, restart Unity Hub, reopen the project. |
+| "Android Build Support is not installed" | Unity Hub → Installs → 2022.1.22f1 → Add modules → Android Build Support (with OpenJDK and SDK & NDK). |
+| `adb install` fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | The phone has a build signed with another key. Run `adb uninstall com.warpoker.game` first. |
+| After translating, some new text still shows in English | That text was added after your `text.json` was made. Run WarPoker → Update Config Files to add the missing keys (in English), then translate them. |
+| The batch build says the project is already open | Close the Editor that has `client/` open. |
+| The next hand starts before the showdown animation ends | Raise `showdownDelayMs` in `server/config.json`, or lower the timings in `game.json`. |
+
+---
+
+## 13. Unity 2022.1 on newer Linux
+
+Windows and macOS need none of this. Unity 2022.1 is older than Ubuntu 23.10 and later (such as 24.04), so it needs four fixes there. The dev server already has them.
+
+1. **libssl 1.1** for Unity's built-in compiler (error: "No usable version of libssl was found"). Copy `libssl.so.1.1` and `libcrypto.so.1.1` from the Ubuntu 20.04 package to `Editor/Data/libssl1.1/`, and start Unity with that folder on `LD_LIBRARY_PATH`. The `unity-2022.1` launcher in `~/.local/bin` does this.
+2. **A bee_backend wrapper,** for the known hang at "Initial Asset Database Refresh" (Unity issue UUM-54803). Rename `Editor/Data/bee_backend` to `bee_backend_real`, and put a small script in its place that drops the `--stdin-canary` argument.
+3. **OpenJDK 8** in `PlaybackEngines/AndroidPlayer/OpenJDK`, because 2022.1 rejects JDK 11 ("JDK not found"). Unity's own copy is `download_unity/open-jdk/open-jdk-linux-x64/jdk8u172-b11_….zip`.
+4. **A JKS debug keystore.** JDK 8 can't read the PKCS12 `~/.android/debug.keystore` that newer tools write. Convert it with `keytool -importkeystore … -deststoretype JKS`; it keeps the same key.
