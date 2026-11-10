@@ -7,6 +7,7 @@ Wording, art and game settings live in a few files, so you can change them witho
 | Any text players see (buttons, titles, messages, errors, hand names) | `client/Assets/_Project/Resources/Config/text.json` | Rebuild the app |
 | The server address the app connects to | `serverUrl` in `client/Assets/_Project/Resources/Config/game.json` | Rebuild the app |
 | Showdown, march and crown timings, maximum soldiers per squad | `client/Assets/_Project/Resources/Config/game.json` | Rebuild the app |
+| A sound effect | Replace or add `client/Assets/_Project/Resources/Audio/{sound}_{n}.ogg` (list in `client/README.md`) | Rebuild the app |
 | An image, font or animation (buttons, panels, soldier, card art, map) | Put the new file in `client/Assets/_Project/Resources/…`; if its name or location differs, update `client/Assets/_Project/Resources/Config/art.json` | Rebuild the app |
 | Colours | `client/Assets/_Project/Scripts/UI/Theme.cs` | Rebuild the app |
 | Rooms, buy-ins, blinds, starting soldiers, refill, turn and idle timers | `server/config.json` | Restart the server |
@@ -55,7 +56,7 @@ Each line is `"Key": "Text shown"`. Change the text on the right; never rename t
   - `frameScale` is how much larger the frame is than the figure inside it. The current frames leave room for the spear and the fall, so the value is 2.
 - **Map:** drop an image at `Resources/Map/background.png` to replace the drawn map.
 - **Cards:**
-  - Main art: `Resources/Cards/Art/{card}.png`, for example `Ah.png` or `Td.png`. `default.png` covers any card without its own image. The art area is roughly 1:2.
+  - Main art: `Resources/Cards/Art/{card}.png`, for example `Ah.png` or `Td.png`. `default.png` covers any card without its own image. The art area is roughly 1:2 (the placeholders are 160×300; `client/Tools/make_card_art.py` redraws them).
   - Card back: `Resources/Cards/back.png`.
   - Suit icons: `Resources/Cards/Suits/{h|d|c|s}.png`.
 

@@ -9,7 +9,7 @@ namespace WarPoker.Cards
 {
     /// <summary>
     /// A playing card built from code, in a clean modern style: soft drop shadow, white rounded body,
-    /// a narrow left strip with a bold rank above the suit pip, and a large main art area.
+    /// a narrow left strip (suit pip at the top, rank at the bottom), a hairline divider and a large picture.
     /// Art comes from <see cref="CardArt"/>.
     /// </summary>
     public class CardView : MonoBehaviour
@@ -86,45 +86,54 @@ namespace WarPoker.Cards
                 return;
             }
 
-            // Left strip: rank on top, suit pip below.
+            // Narrow full-height strip on the left: suit pip at the top, rank at the bottom,
+            // a hairline divider, then the picture filling the rest.
             float pad = Mathf.Max(2f, w * 0.035f);
-            float stripW = Mathf.Max(14f, w * 0.28f);
+            float stripW = Mathf.Max(14f, w * 0.24f);
             var strip = UIKit.Rect("Strip", _face);
             strip.anchorMin = new Vector2(0, 0);
             strip.anchorMax = new Vector2(0, 1);
             strip.pivot = new Vector2(0, 0.5f);
-            strip.offsetMin = new Vector2(pad * 0.6f, pad);
-            strip.offsetMax = new Vector2(pad * 0.6f + stripW, -pad * 0.5f);
-
-            _rankSize = Mathf.Max(10, Mathf.RoundToInt(Mathf.Min(h * 0.22f, stripW * 1.15f)));
-            _rankSizeTen = Mathf.Max(9, Mathf.RoundToInt(_rankSize * 0.8f));
-            _rank = UIKit.Text(strip, "Rank", "", _rankSize, Theme.CardBlack, TextAnchor.UpperCenter, FontStyle.Bold);
-            _rank.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _rank.verticalOverflow = VerticalWrapMode.Overflow;
-            var rrt = _rank.rectTransform;
-            rrt.anchorMin = new Vector2(0, 1);
-            rrt.anchorMax = new Vector2(1, 1);
-            rrt.pivot = new Vector2(0.5f, 1f);
-            rrt.anchoredPosition = new Vector2(0, 0);
-            rrt.sizeDelta = new Vector2(0, _rankSize * 1.1f);
+            strip.offsetMin = new Vector2(pad * 0.5f, pad * 1.2f);
+            strip.offsetMax = new Vector2(pad * 0.5f + stripW, -pad * 1.2f);
 
             float suitSize = stripW * 0.80f;
             _suit = UIKit.Deco(strip, "Suit", null, Theme.CardBlack);
             _suit.preserveAspect = true;
             var srt = _suit.rectTransform;
-            srt.anchorMin = new Vector2(0.5f, 1);
-            srt.anchorMax = new Vector2(0.5f, 1);
+            srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 1f);
             srt.pivot = new Vector2(0.5f, 1f);
-            srt.anchoredPosition = new Vector2(0, -_rankSize * 1.02f);
+            srt.anchoredPosition = Vector2.zero;
             srt.sizeDelta = new Vector2(suitSize, suitSize);
 
-            // Main art area: everything right of the strip.
+            _rankSize = Mathf.Max(10, Mathf.RoundToInt(Mathf.Min(h * 0.2f, stripW * 1.1f)));
+            _rankSizeTen = Mathf.Max(9, Mathf.RoundToInt(_rankSize * 0.72f));
+            _rank = UIKit.Text(strip, "Rank", "", _rankSize, Theme.CardBlack, TextAnchor.LowerCenter, FontStyle.Bold);
+            _rank.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _rank.verticalOverflow = VerticalWrapMode.Overflow;
+            var rrt = _rank.rectTransform;
+            rrt.anchorMin = new Vector2(0, 0);
+            rrt.anchorMax = new Vector2(1, 0);
+            rrt.pivot = new Vector2(0.5f, 0f);
+            rrt.anchoredPosition = new Vector2(0, -_rankSize * 0.06f); // the font has room under the baseline
+            rrt.sizeDelta = new Vector2(0, _rankSize * 1.1f);
+
+            float divX = pad * 0.5f + stripW + pad * 0.3f;
+            var divider = UIKit.Deco(_face, "Divider", null, new Color(0.80f, 0.81f, 0.84f));
+            var drt = divider.rectTransform;
+            drt.anchorMin = new Vector2(0, 0);
+            drt.anchorMax = new Vector2(0, 1);
+            drt.pivot = new Vector2(0, 0.5f);
+            drt.offsetMin = new Vector2(divX, pad);
+            drt.offsetMax = new Vector2(divX + Mathf.Max(1f, w * 0.012f), -pad);
+
+            // Main art area: everything right of the divider.
             _art = UIKit.Deco(_face, "Art", null, Color.white);
             _art.preserveAspect = true;
             var art = _art.rectTransform;
             art.anchorMin = Vector2.zero;
             art.anchorMax = Vector2.one;
-            art.offsetMin = new Vector2(pad * 0.6f + stripW + pad * 0.4f, pad);
+            art.offsetMin = new Vector2(divX + pad * 0.7f, pad);
             art.offsetMax = new Vector2(-pad, -pad);
 
             FinishBuild(ppu);
@@ -238,6 +247,7 @@ namespace WarPoker.Cards
         {
             SetCard(code, false);
             ResetVisual();
+            Sfx.Play("flip", 1f, 0.08f);
             yield return Tween.Flip(transform, () => SetFaceUp(true), duration);
         }
     }

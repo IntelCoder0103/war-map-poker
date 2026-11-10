@@ -99,6 +99,7 @@ namespace WarPoker.Game
                 return;
             }
             bool fresh = _legal == null;
+            if (fresh) WarPoker.FX.Sfx.Play("turn");
             _legal = legal;
             _pending = false;
             _bar.SetActive(true);

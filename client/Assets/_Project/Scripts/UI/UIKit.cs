@@ -219,6 +219,7 @@ namespace WarPoker.UI
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             t.verticalOverflow = VerticalWrapMode.Truncate;
             AddOutline(t, 2f);
+            btn.onClick.AddListener(() => WarPoker.FX.Sfx.Play("click"));
             if (onClick != null) btn.onClick.AddListener(() => onClick());
             return btn;
         }
@@ -238,6 +239,7 @@ namespace WarPoker.UI
             btn.colors = colors;
             var t = Text(img.transform, "Label", label, fontSize, textColor, TextAnchor.MiddleCenter, FontStyle.Bold);
             Stretch(t.rectTransform, 4f);
+            btn.onClick.AddListener(() => WarPoker.FX.Sfx.Play("click"));
             if (onClick != null) btn.onClick.AddListener(() => onClick());
             return btn;
         }

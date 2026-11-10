@@ -75,5 +75,5 @@ Standard No-Limit Hold'em:
 - Chat
 - Friend lists (invites go by username)
 - Leaderboards
-- Sound
+- Music (there are sound effects, see `client/README.md`)
 - iOS

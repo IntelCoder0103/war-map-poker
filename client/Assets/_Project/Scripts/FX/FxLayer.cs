@@ -159,6 +159,7 @@ namespace WarPoker.FX
         {
             int count = TroopSquad.MarchFigures(amount, TroopStackView.Unit, maxIcons);
             if (count == 0) yield break;
+            Sfx.Play("march", 1f, 0.25f);
             var steps = new List<IEnumerator>();
             for (int i = 0; i < count; i++)
             {
@@ -199,6 +200,7 @@ namespace WarPoker.FX
         public IEnumerator FlyCard(Vector2 from, Vector2 to, Vector2 size, float duration, float delay, System.Action onLanded)
         {
             if (delay > 0f) yield return Tween.Delay(delay);
+            Sfx.Play("deal", 1f, 0.1f);
             var card = GetCard(size);
             card.Rect.anchoredPosition = from;
             card.Rect.localEulerAngles = new Vector3(0, 0, 25f);

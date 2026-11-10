@@ -48,6 +48,7 @@ namespace WarPoker.Game
 
         bool _isTurn;
         long _deadline, _turnTimeMs = 20000;
+        long _tickedSecond = -1;
         int _cardsRendered;           // how many card slots the last Render showed
 
         static readonly Vector2 BannerPos = new Vector2(0, 50);
@@ -242,6 +243,7 @@ namespace WarPoker.Game
 
             // Turn
             _isTurn = !waiting && s.turnSeat == seatIndex && s.turnSeat >= 0;
+            if (s.turnDeadline != _deadline) _tickedSecond = -1;
             _deadline = s.turnDeadline;
             _turnTimeMs = s.turnTimeMs > 0 ? s.turnTimeMs : 20000;
             _glow.enabled = _isTurn;
@@ -412,6 +414,13 @@ namespace WarPoker.Game
                 float frac = Mathf.Clamp01((float)remaining / _turnTimeMs);
                 _timer.fillAmount = frac;
                 _timer.color = frac > 0.5f ? Theme.Positive : Color.Lerp(Theme.Crimson, Theme.Gold, frac * 2f);
+                // my own turn: a tick for each of the last five seconds
+                long second = remaining > 0 ? (remaining + 999) / 1000 : 0;
+                if (IsMe && second >= 1 && second <= 5 && second != _tickedSecond)
+                {
+                    _tickedSecond = second;
+                    Sfx.Play("tick", 1f, 0.3f);
+                }
             }
         }
     }

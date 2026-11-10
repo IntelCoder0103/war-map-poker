@@ -356,6 +356,7 @@ namespace WarPoker.Main
                     {
                         var inv = payload != null ? payload.ToObject<InviteMsg>() : null;
                         if (inv == null) break;
+                        WarPoker.FX.Sfx.Play("notify");
                         if (Current == LobbyScreen) LobbyScreen.OnInvite(inv);
                         else if (Current == GameScreen) Toast(Strings.Format("InviteArrivedAtTable", inv.from, inv.code), 4f);
                         break;

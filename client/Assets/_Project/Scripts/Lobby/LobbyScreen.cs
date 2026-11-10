@@ -79,6 +79,8 @@ namespace WarPoker.Lobby
             var logout = UIKit.Button(bar.transform, "Logout", Strings.Logout, new Vector2(170, 64), Theme.Leather, Theme.ParchmentLight, 26,
                 () => App.Logout(null));
             AnchorRight((RectTransform)logout.transform, -40, 10, 170, 64);
+            var sound = SoundToggle.Create(bar.transform, 74f);
+            AnchorRight((RectTransform)sound.transform, -505, 10, 69, 74);
 
             // Room list
             var header = UIKit.Text(Root, "Header", Strings.ChooseBattlefield, 46, Theme.GoldLight, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -444,6 +446,7 @@ namespace WarPoker.Lobby
                 {
                     App.Session.SetUser(r.Data.user);
                     _status.text = Strings.Get("RefillArrived");
+                    WarPoker.FX.Sfx.Play("coins");
                 }
                 else
                 {

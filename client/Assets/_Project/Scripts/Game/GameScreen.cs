@@ -148,6 +148,8 @@ namespace WarPoker.Game
             // you as retreating: you keep playing and leave as soon as you fold or the hand ends. Tap again to stay.
             _leaveButton = UIKit.Button(_board, "Leave", Strings.Leave, new Vector2(190, 64), Theme.Leather, Theme.ParchmentLight, 28, OnLeave);
             UIKit.Center((RectTransform)_leaveButton.transform, new Vector2(-835, 490), new Vector2(190, 64));
+            var sound = SoundToggle.Create(_board, 74f);
+            UIKit.Center((RectTransform)sound.transform, new Vector2(-692, 490), ((RectTransform)sound.transform).sizeDelta);
             _info = UIKit.Text(_board, "Info", "", 24, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
             UIKit.AddOutline(_info, 2f);
             UIKit.Center(_info.rectTransform, new Vector2(-700, 420), new Vector2(460, 60));
@@ -744,6 +746,7 @@ namespace WarPoker.Game
             Apply(e.state);
             if (d == null) yield break;
             var view = ViewFor(d.seat);
+            Sfx.Play("join");
             if (view != null) yield return view.Pop(view.transform, 0.6f);
         }
 
@@ -752,7 +755,7 @@ namespace WarPoker.Game
             var d = Data<SeatOnlyData>(e);
             if (d == null) yield break;
             var view = ViewFor(d.seat);
-            if (view != null && view.Occupied) yield return view.FadeOut(0.3f);
+            if (view != null && view.Occupied) { Sfx.Play("leave"); yield return view.FadeOut(0.3f); }
         }
 
         IEnumerator PlayReady(TableEventMsg e)
@@ -761,6 +764,7 @@ namespace WarPoker.Game
             Apply(e.state);
             if (d == null) yield break;
             var view = ViewFor(d.seat);
+            Sfx.Play("ready");
             if (view != null) yield return view.Pop(view.ReadyBadge, 1.6f);
         }
 
@@ -786,6 +790,8 @@ namespace WarPoker.Game
                 if (v != null) { v.SetCardsShown(0); if (v.IsMe) v.ShowBacks(); }
             }
 
+            Sfx.Play("shuffle");
+            yield return Tween.Delay(0.35f);
             Vector2 deck = _fx.ToLocal(_deckRt);
             var steps = new List<IEnumerator>();
             float delay = 0f;
@@ -840,6 +846,7 @@ namespace WarPoker.Game
 
             if (a.type == "fold")
             {
+                Sfx.Play("fold");
                 var steps = new List<IEnumerator>
                 {
                     v.FoldAnim(this),
@@ -850,6 +857,7 @@ namespace WarPoker.Game
             }
             if (a.type == "check")
             {
+                Sfx.Play("check");
                 yield return _fx.FloatText(textPos, Strings.Get(a.auto ? "Float.checkAuto" : "Float.check"), Theme.ParchmentLight);
                 yield break;
             }
@@ -872,6 +880,7 @@ namespace WarPoker.Game
                 parallel.Add(_fx.MarchTroops(camp, _fx.ToLocal(v.BetRect), a.amount, 0.5f, allIn ? 6 : 4));
             if (allIn)
             {
+                Sfx.Play("allin");
                 parallel.Add(_fx.Flash(new Color(1f, 0.85f, 0.5f, 0.5f), 0.35f));
                 parallel.Add(_fx.Shake(_board, 14f, 0.35f));
                 parallel.Add(_fx.Burst(camp, 26, Theme.GoldLight, Theme.Crimson));
@@ -1016,7 +1025,7 @@ namespace WarPoker.Game
                     var bv = ViewFor(seat.seat);
                     if (bv != null && bv.DisplayedBet > 0 && TroopArt.Frames("death") != null) { bv.BetDies(); busted.Add(bv); }
                 }
-            if (busted.Count > 0) yield return Tween.Delay(0.9f);
+            if (busted.Count > 0) { Sfx.Play("fall"); yield return Tween.Delay(0.9f); }
 
             // ...then every player's soldiers march from their bet spot to the winner(s).
             var steps = new List<IEnumerator>();
@@ -1051,7 +1060,18 @@ namespace WarPoker.Game
                 after.Add(wv.Pop(wv.transform, 1.15f));
                 wv.PlaySquad("victory", TroopArt.VictoryFps); // the winner's troops cheer
             }
+            Sfx.Play("coins");
+            PlayResultCue(won, e.state);
             yield return Tween.Parallel(this, after);
+        }
+
+        // A fanfare when I win; a short falling tune when I lose a hand I stayed in to the end.
+        void PlayResultCue(Dictionary<int, long> won, Snapshot s)
+        {
+            if (s == null || s.yourSeat < 0) return;
+            if (won.ContainsKey(s.yourSeat)) { Sfx.Play("win"); return; }
+            var me = s.Seat(s.yourSeat);
+            if (me != null && me.inHand && !me.folded) Sfx.Play("lose");
         }
 
         IEnumerator PlayCardsShown(TableEventMsg e)

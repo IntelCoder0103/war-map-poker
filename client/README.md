@@ -76,8 +76,8 @@ Everything has a procedural placeholder. To replace it, put a sprite at the path
 
 | What | Path (under `Assets/_Project/Resources/`) | Recommended size |
 |---|---|---|
-| Card main art, per card | `Cards/Art/{code}.png` — e.g. `Cards/Art/Ah.png`, `Cards/Art/Td.png`, `Cards/Art/2c.png` (rank `23456789TJQKA` + suit `cdhs`) | 256×360 px (portrait, ~0.7 aspect; shown with preserve-aspect in the area right of the rank strip) |
-| Card main art, fallback for all cards | `Cards/Art/default.png` | 256×360 px |
+| Card main art, per card | `Cards/Art/{code}.png` — e.g. `Cards/Art/Ah.png`, `Cards/Art/Td.png`, `Cards/Art/2c.png` (rank `23456789TJQKA` + suit `cdhs`) | 160×300 px (portrait, ~0.53 aspect, sides a multiple of 4 so phones can compress it; shown with preserve-aspect right of the strip) |
+| Card main art, fallback for all cards | `Cards/Art/default.png` | 160×300 px |
 | Card back | `Cards/back.png` | 256×360 px (fills the whole card; include your own rounded corners/border) |
 | Suit icons | `Cards/Suits/c.png`, `d.png`, `h.png`, `s.png` | 64×64 px, **white** silhouette on transparent (tinted red/black by code) |
 | Troop units | `Troops/spearman.png`, `archer.png`, `ranger.png`, `cavalry.png`, `knight.png` | 128×128 px, transparent, facing right (mirrored when marching left) |
@@ -85,8 +85,31 @@ Everything has a procedural placeholder. To replace it, put a sprite at the path
 | Compass rose | `Map/compass.png` | 256×256 px, transparent |
 
 Lookup order for card art: `Cards/Art/{code}` → `Cards/Art/default` → procedural heraldic shield in the suit colour.
-Card layout: white rounded body; a narrow strip on the **left** with the rank on top and the suit icon below; the large
-main area shows the art.
+Card layout: white rounded body; a narrow full-height strip on the **left** with the suit icon at the top and the rank at
+the bottom, a hairline divider, and the large picture. (The showdown ranking board uses a compact style instead: small
+suit in the corner, big rank in the middle.)
+
+The 52 placeholder pictures in `Cards/Art/` are drawn by `client/Tools/make_card_art.py` from the game's own art: each
+suit is an army in its own colour; 2–10 show that many soldiers, J/Q/K a soldier with a star / small crown / big crown,
+A a shield with the suit. Replace any file with real art, or edit and rerun the script (needs Pillow and numpy).
+
+## Sound effects (drop-in, no code changes)
+Clips live in `Assets/_Project/Resources/Audio/` as `{sound}_{n}.ogg`; the game picks one variant at random each time,
+so add `deal_5.ogg` for more variety or overwrite a file to change a sound. Loudness per sound is set in
+`Scripts/FX/Sfx.cs`. A speaker button in the lobby and at the table turns sound on and off (remembered on the device).
+
+| Sound | When |
+|---|---|
+| `click` | any button |
+| `shuffle`, `deal` | a new hand: shuffle, then one slide per card dealt |
+| `flip` | a card turns face up |
+| `check`, `fold` | a player checks / folds |
+| `march` | soldiers march (bets, blinds, the pot going to the winner) |
+| `allin` | someone goes all-in (sword clash) |
+| `ready`, `join`, `leave` | a player presses Ready (sword drawn), sits down, leaves |
+| `turn`, `tick` | your turn starts; each of your last 5 seconds |
+| `coins`, `win`, `lose`, `fall` | the pot is won; you won; you lost a hand you played to the end; a busted player's soldiers fall |
+| `notify` | an invite to a private room arrives |
 
 Soldiers (display only): one soldier type, sprite `Resources/Troops/soldier` (procedural fallback). An amount is drawn
 as a squad of 1–5 identical figures, one more per digit (1–9 → 1, 10–99 → 2, … 10,000+ → 5), next to the number.
