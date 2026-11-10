@@ -7,6 +7,11 @@ Texas Hold'em on an old war map, betting soldiers. Android (Unity 2022.1.22) + N
 - [server/README.md](server/README.md): run and test the server
 - [client/README.md](client/README.md): open, run, and build the Unity app
 
+## Demo APK
+[demo/WarPoker-demo.apk](demo/WarPoker-demo.apk): install on an Android phone (allow "install unknown apps").
+It connects to the demo server at `http://95.217.62.59:3456`, so it only works while that server is running;
+the server address can be changed on the login screen.
+
 ## Quick start
 ```bash
 cd server

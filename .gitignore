@@ -12,3 +12,6 @@ Thumbs.db
 # Build output
 *.apk
 *.aab
+
+# The demo APK is kept in the repo on purpose
+!demo/*.apk
