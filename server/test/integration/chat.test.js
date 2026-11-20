@@ -51,10 +51,13 @@ test('the app gets the switched-on list, with pictures for emojis', async () => 
   const texts = r.body.items.filter((i) => i.kind === 'text');
   expect(texts.map((t) => t.text)).toContain('Good luck, commander!');
   expect(texts).toHaveLength(16);
-  for (const e of r.body.items.filter((i) => i.kind === 'emoji')) {
-    expect(e.image).toMatch(/^\/chat\/img\/[0-9a-f]{24}\.png\?r=\d+$/);
-    expect(e.frames).toBe(1);
-  }
+  const emojis = r.body.items.filter((i) => i.kind === 'emoji');
+  for (const e of emojis) expect(e.image).toMatch(/^\/chat\/img\/[0-9a-f]{24}\.png\?r=\d+$/);
+  // The built-ins are animations: a strip of 128 px frames.
+  const anim = emojis.find((e) => e.frames > 1);
+  expect(anim).toMatchObject({ frames: 24, fps: 16 });
+  const strip = await getRaw(anim.image);
+  expect([strip.body.readUInt32BE(16), strip.body.readUInt32BE(20)]).toEqual([128 * 24, 128]);
   const emoji = r.body.items.find((i) => i.kind === 'emoji');
   if (emoji) {
     const img = await getRaw(emoji.image);
@@ -65,6 +68,21 @@ test('the app gets the switched-on list, with pictures for emojis', async () => 
   }
   expect((await getRaw('/chat/img/000000000000000000000000.png')).status).toBe(404);
   expect((await getRaw('/chat/img/nonsense.png')).status).toBe(404);
+});
+
+test("a new version's built-in pictures replace the old ones on start, keeping the admin's choices", async () => {
+  const { ChatItem } = require('../../src/chat/model');
+  const doc = await ChatItem.findOne({ builtin: 'fire' });
+  const before = doc.rev;
+  await ChatItem.updateOne({ _id: doc._id }, { $set: { image: Buffer.from('old picture'), frames: 1, fps: 0, enabled: false, label: 'Mine' } });
+  expect(await srv.chat.syncBuiltins()).toBe(1);
+  const after = await ChatItem.findById(doc._id).select('+image');
+  expect(after).toMatchObject({ enabled: false, label: 'Mine' });
+  expect(after.frames).toBeGreaterThan(1);
+  expect(after.rev).toBe(before + 1);
+  expect(after.image.slice(1, 4).toString()).toBe('PNG');
+  expect(await srv.chat.syncBuiltins()).toBe(0); // nothing left to change
+  await ChatItem.updateOne({ _id: doc._id }, { $set: { enabled: true, label: doc.label } });
 });
 
 test('a seated player sends a message; everyone at the table sees it over the sender', async () => {

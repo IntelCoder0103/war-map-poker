@@ -331,9 +331,11 @@ The full contract, with every payload, error code and the snapshot format, is in
 | `src/socket/handlers.js` | Socket login check, and the lobby, room, table and chat events |
 | `src/chat/` | Quick chat: the list (`store.js`, `model.js`, `defaults.js`), its HTTP routes and the admin API (`routes.js`), PNG/GIF conversion (`images.js`) |
 | `admin/index.html` | The admin page (plain HTML and JavaScript, no build step) |
-| `assets/emoji/` | Built-in emoji pictures and their list (`manifest.json`) |
+| `assets/emoji/` | Built-in emoji animations (what the server serves) and their list (`manifest.json`) |
+| `art/emoji/` | The still pictures the animations are made from (not in the Docker image) |
 | `tools/bots.js` | Test bots |
-| `tools/make_emoji_art.py` | Draws the built-in emojis with Codex (§12) |
+| `tools/make_emoji_art.py` | Draws the built-in emojis' still pictures with Codex (§12) |
+| `tools/make_emoji_anims.py` | Animates them (§12) |
 | `test/unit`, `test/integration` | Jest tests |
 
 **How soldiers are kept safe:**
@@ -435,23 +437,28 @@ Open **`http://<server address>/admin`**, for example `http://localhost:3000/adm
 - **On the internet:** serve the page over HTTPS (§11), so the password isn't sent in the clear.
 
 ### What a new database starts with
-- **40 built-in emojis**, 20 switched on: 👍 👏 😂 🤣 😎 🤔 😱 😭 😡 🔥 💪 🙏 🤝 🎉 👑 🏆 ⚔️ 🛡️ 💀 🍀
-- **20 more in the library:** 😴 🤡 🤯 😈 💯 🥳 🫡 👀 💔 🐔 ❤️ 💰 😉 🙄 😏 💣 🏳️ 🎯 🐢 🍻
+- **40 built-in emojis, all animated**, 22 switched on: 👍 👏 😂 🤣 😎 🤔 😱 😭 😡 🔥 💪 🙏 🤝 🎉 👑 🏆 ⚔️ 🛡️ 💀 🍀 ❤️ 💣
+- **18 more in the library:** 😴 🤡 🤯 😈 💯 🥳 🫡 👀 💔 🐔 💰 😉 🙄 😏 🏳️ 🎯 🐢 🍻
 - **16 war-themed messages**, such as "Charge!", "Hold the line!" and "I smell a bluff…"
 
 The list lives in MongoDB (collections `chatitems` and `chatsettings`, pictures included), so a normal database backup covers it. The defaults are added only when the database has no chat list yet.
 
 ### The built-in emoji pictures
-They're in `assets/emoji/`, one 256×256 PNG per emoji, listed in `assets/emoji/manifest.json` with what each one should show. They were drawn for this game with Codex image generation: classic yellow faces with war touches, and knight gauntlets for hands.
+Each built-in emoji is made in two steps:
 
-To redraw some, delete their PNGs and run the generator. It needs the Codex CLI logged in, and Pillow:
+1. **The still picture**, in `art/emoji/<id>.png` (256×256). These were drawn for this game with Codex image generation: classic yellow faces with war touches, and knight gauntlets for hands. `assets/emoji/manifest.json` lists every emoji with what it should show.
+2. **The animation**, in `assets/emoji/<id>.png`, which is what the server serves. It's a strip of 24 frames of 128×128 (1.5 s, looping), made from the still by `tools/make_emoji_anims.py`. Each emoji has its own motion in that script: squash and stretch, blinking eyelids, a chattering jaw, a waving flag, a bulging bicep, and effects drawn on top such as tears, steam, sparkles, Zzz, confetti and coins.
+
+Both tools need Pillow; the first also needs the Codex CLI logged in:
 
 ```bash
-python3 tools/make_emoji_art.py              # draws every emoji in the manifest that has no PNG yet
-python3 tools/make_emoji_art.py fire skull   # only these (delete their PNGs first)
+python3 tools/make_emoji_art.py              # draws every emoji in the manifest that has no still yet
+python3 tools/make_emoji_art.py fire skull   # only these (delete their stills first)
+python3 tools/make_emoji_anims.py            # animates them all (or name some: fire skull)
+python3 tools/make_emoji_anims.py --sheet sheet.png --gif gifs/   # plus a contact sheet and sample GIFs
 ```
 
-A new database picks up the new pictures. An existing one keeps what it stored; upload replacements on the admin page instead.
+A new database picks up the pictures. **An existing one is updated on the next start:** a built-in whose shipped picture changed gets the new one. Its name, on/off and position stay as the admin left them.
 
 ### How it works
 - The app loads the list from `GET /chat` when it connects, and keeps the pictures on the phone.

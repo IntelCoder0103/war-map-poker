@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Draws the built-in chat emojis with Codex image generation.
 
-Reads assets/emoji/manifest.json and, for every emoji that has no assets/emoji/<id>.png yet, asks the
+Reads assets/emoji/manifest.json and, for every emoji that has no art/emoji/<id>.png yet, asks the
 Codex CLI to draw it in the game's style (five per Codex run, two runs at a time). Each result is checked
 for a transparent background, trimmed, padded to a square and saved at 256x256.
 
@@ -9,7 +9,7 @@ for a transparent background, trimmed, padded to a square and saved at 256x256.
   python3 server/tools/make_emoji_art.py fire skull # redraw these (delete their PNGs first, or pass --force)
 
 Needs: the Codex CLI logged in (codex login), Pillow. CODEX_MODEL picks the model (default gpt-6.1-sol).
-The style references are the soldier sprite and assets/emoji/thumbs_up.png (when it exists).
+The style references are the soldier sprite and art/emoji/thumbs_up.png (when it exists).
 """
 import json
 import os
@@ -22,7 +22,8 @@ from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-EMOJI = os.path.normpath(os.path.join(HERE, '..', 'assets', 'emoji'))
+EMOJI = os.path.normpath(os.path.join(HERE, '..', 'assets', 'emoji'))   # manifest.json
+STILL = os.path.normpath(os.path.join(HERE, '..', 'art', 'emoji'))      # the pictures
 SOLDIER = os.path.normpath(os.path.join(HERE, '..', '..', 'client', 'Assets', '_Project', 'Resources', 'Troops', 'soldier.png'))
 MODEL = os.environ.get('CODEX_MODEL', 'gpt-6.1-sol')
 SIZE = 256
@@ -74,7 +75,7 @@ def finish(src, dst):
 def run_batch(items):
     work = tempfile.mkdtemp(prefix='emoji_')
     refs = []
-    for ref in (SOLDIER, os.path.join(EMOJI, 'thumbs_up.png')):
+    for ref in (SOLDIER, os.path.join(STILL, 'thumbs_up.png')):
         if os.path.exists(ref):
             shutil.copy(ref, os.path.join(work, 'style_ref_' + os.path.basename(ref)))
             refs += ['-i', os.path.join(work, 'style_ref_' + os.path.basename(ref))]
@@ -87,7 +88,7 @@ def run_batch(items):
     for e in items:
         raw = os.path.join(work, e['id'] + '.png')
         if os.path.exists(raw) and good(raw):
-            finish(raw, os.path.join(EMOJI, e['id'] + '.png'))
+            finish(raw, os.path.join(STILL, e['id'] + '.png'))
             done.append(e['id'])
     shutil.rmtree(work, ignore_errors=True)
     print('batch', [e['id'] for e in items], '-> ok', done, flush=True)
@@ -101,7 +102,7 @@ def main():
     if args:
         emojis = [e for e in emojis if e['id'] in args]
     for attempt in range(3):
-        todo = [e for e in emojis if force or not os.path.exists(os.path.join(EMOJI, e['id'] + '.png'))]
+        todo = [e for e in emojis if force or not os.path.exists(os.path.join(STILL, e['id'] + '.png'))]
         force = False
         if not todo:
             break
@@ -109,7 +110,7 @@ def main():
         print(f'pass {attempt + 1}: {len(todo)} to draw in {len(batches)} batches', flush=True)
         with ThreadPoolExecutor(WORKERS) as pool:
             list(pool.map(run_batch, batches))
-    missing = [e['id'] for e in emojis if not os.path.exists(os.path.join(EMOJI, e['id'] + '.png'))]
+    missing = [e['id'] for e in emojis if not os.path.exists(os.path.join(STILL, e['id'] + '.png'))]
     print('missing:', missing or 'none')
 
 

@@ -132,14 +132,17 @@ namespace WarPoker.Chat
             _loading.Remove(key);
             if (bytes == null) yield break;
 
-            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, true);
-            if (!tex.LoadImage(bytes))
+            // Stills get mipmaps (drawn smaller in the picker); animation strips don't need them, and
+            // markNonReadable drops the CPU copy, so a long strip costs only its GPU memory.
+            bool still = item.frames <= 1;
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, still);
+            if (!tex.LoadImage(bytes, true))
             {
                 UnityEngine.Object.Destroy(tex);
                 yield break;
             }
             tex.wrapMode = TextureWrapMode.Clamp;
-            tex.filterMode = FilterMode.Trilinear;
+            tex.filterMode = still ? FilterMode.Trilinear : FilterMode.Bilinear;
             int size = tex.height;
             int count = Mathf.Max(1, Mathf.Min(item.frames, tex.width / Mathf.Max(1, size)));
             var frames = new Sprite[count];

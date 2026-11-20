@@ -9,7 +9,7 @@
 | Card, chip, interface, RPG sounds and music jingles (`click`, `deal`, `shuffle`, `flip`, `check`, `fold`, `march`, `ready`, `join`, `leave`, `turn`, `tick`, `coins`, `win`, `lose`, `fall`, `notify`; some trimmed, mixed or made louder) | `Assets/_Project/Resources/Audio/` | Kenney (kenney.nl): "Casino Audio", "Interface Sounds", "RPG Audio", "Music Jingles", via opengameart.org | CC0 (public domain) |
 | Sword clashes (`allin`) | `Assets/_Project/Resources/Audio/allin_*.ogg` | StarNinjas: "20 Sword Sound Effects" (opengameart.org/content/20-sword-sound-effects-attacks-and-clashes) | CC0 (public domain) |
 | Quick-chat pop (`chat`) | `Assets/_Project/Resources/Audio/chat_1.ogg` | Kenney (kenney.nl): "Interface Sounds" | CC0 (public domain) |
-| Quick-chat emoji pictures (served by the game server) | `server/assets/emoji/` | Drawn for this project with Codex (OpenAI) image generation, using the soldier sprite as the style reference. OpenAI's terms give the images' rights to the account that generated them. | Owned by the project |
+| Quick-chat emoji pictures (served by the game server) | `server/art/emoji/` (stills), `server/assets/emoji/` (animations) | Drawn for this project with Codex (OpenAI) image generation, using the soldier sprite as the style reference; animated in code by `server/tools/make_emoji_anims.py`. OpenAI's terms give the images' rights to the account that generated them. | Owned by the project |
 | Card pictures (drawn by `Tools/make_card_art.py` from the soldier, crown, star and sunburst above) | `Assets/_Project/Resources/Cards/Art/` | made for this project | same terms as the art they use |
 
 Credit for CC0 assets is optional, but it's kind to keep it.

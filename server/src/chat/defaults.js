@@ -1,6 +1,7 @@
 // What a new database starts with. Built-in emojis come from assets/emoji/manifest.json.
 const fs = require('fs');
 const path = require('path');
+const { isReadyStrip } = require('./images');
 
 const EMOJI_DIR = path.join(__dirname, '..', '..', 'assets', 'emoji');
 
@@ -25,7 +26,10 @@ const MESSAGES = [
 
 const COOLDOWN_MS = 3000;
 
-/** Built-in emojis whose picture exists: [{ id, char, label, on, file }]. */
+/**
+ * Built-in emojis whose picture exists: [{ id, char, label, on, file, frames?, fps? }].
+ * An entry with `frames` is an animation strip; one whose picture doesn't match is left out.
+ */
 function builtinEmojis() {
   let manifest;
   try {
@@ -35,7 +39,8 @@ function builtinEmojis() {
   }
   return (manifest.emojis || [])
     .map((e) => ({ ...e, file: path.join(EMOJI_DIR, `${e.id}.png`) }))
-    .filter((e) => fs.existsSync(e.file));
+    .filter((e) => fs.existsSync(e.file))
+    .filter((e) => !(e.frames > 1) || isReadyStrip(fs.readFileSync(e.file), e.frames));
 }
 
 module.exports = { MESSAGES, COOLDOWN_MS, builtinEmojis };

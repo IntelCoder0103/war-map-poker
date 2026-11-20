@@ -188,17 +188,19 @@ Third-party art, fonts and sounds, with their licences, are listed in [CREDITS.m
 ## 8. Quick chat
 
 Players at a table can send an emoji or a short message. The **chat button** sits at the bottom-left of the table. It, or a tap on your own camp, opens a picker with two tabs:
-- **Emojis:** a grid of up to 30.
-- **Messages:** up to 20 short lines.
+- **Emojis:** a grid of big tiles, 5 across, up to 30. It scrolls when there are more than fit.
+- **Messages:** up to 20 short lines, one per row as big buttons. The list scrolls.
+
+Both tabs are sized for a finger on a phone. Dragging scrolls the list without sending anything.
 
 Tapping one sends it. It pops up over the sender's camp for everyone at that table for about 3 seconds, with a soft pop sound.
-- **Emojis** pop in and bob gently; animated ones (uploaded GIFs) play their frames.
+- **Emojis** pop in and bob gently, and play their animation (all the built-in ones are animated; uploads can be a still PNG or an animated GIF).
 - **Messages** show on a parchment speech bubble.
 - **Cooldown:** after sending, the button shows a shrinking dark wedge until the player can send again (3 seconds by default).
 - **Hide others' messages** (in the picker) turns off other players' bubbles on this phone. It's remembered.
 
 **Nothing about the list is built into the app.** It comes from the server (`GET /chat`) every time the app connects, and again whenever the admin changes it.
-- Emoji pictures are downloaded once and kept on the phone, in `Application.persistentDataPath/chat`.
+- Emoji pictures are downloaded once and kept on the phone, in `Application.persistentDataPath/chat`. An animation is one image, a strip of 128 px frames side by side (24 frames for the built-ins, about 300 KB). In memory it costs about 1.5 MB of video memory, with no extra copy.
 - Adding, removing or reordering emojis and messages is done on the server's admin page, with no app update. See the [server guide](../server/README.md#12-quick-chat-and-the-admin-page).
 
 **Wording and art used by the picker:**

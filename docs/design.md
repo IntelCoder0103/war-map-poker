@@ -72,10 +72,11 @@ Standard No-Limit Hold'em:
 
 ## Quick chat
 - At the table, a chat button (bottom-left), or a tap on your own camp, opens a picker with two tabs: **Emojis** and **Messages**. Tapping one sends it.
-- It shows to everyone at the table as a bubble over the sender's camp for about 3 seconds, with a soft pop sound: a big emoji (it pops in and bobs; uploaded GIFs play their animation) or a short line on a parchment bubble.
+- It shows to everyone at the table as a bubble over the sender's camp for about 3 seconds, with a soft pop sound: a big animated emoji (it pops in and bobs while playing its animation) or a short line on a parchment bubble.
 - Players pick only from the server's list, so nothing needs moderating. Only seated players can send, at most one item every 3 seconds (adjustable).
 - "Hide others' messages" in the picker turns off other players' bubbles on that phone.
-- The list starts with 20 emojis switched on, 20 more waiting in a library, and 16 war-themed messages. The emojis were drawn for this game with Codex image generation: classic yellow faces with war touches (a helmet on 😎, a dented helmet on 💀) and knight gauntlets for hands.
+- The list starts with 22 emojis switched on, 18 more waiting in a library, and 16 war-themed messages. The emojis were drawn for this game with Codex image generation: classic yellow faces with war touches (a helmet on 😎, a dented helmet on 💀) and knight gauntlets for hands. All 40 are animated in code, in the spirit of Telegram's animated emojis: 😂 bounces with tears spurting out, 💀's jaw chatters, 🏳️ waves, 💔 splits and snaps back.
+- The picker is sized for a phone: emojis as big tiles, 5 across, and messages one per row. Both scroll.
 - **Admin page** at `http://<server>/admin`, behind one shared password (`ADMIN_PASSWORD`): switch items on or off, reorder, edit, delete, add messages, upload PNG or GIF emojis, set the cooldown. Changes reach the apps within seconds, with no app update.
 
 ## Not in this version

@@ -132,6 +132,12 @@ function isReadySquare(buf) {
     buf.readUInt32BE(16) === STATIC_SIZE && buf.readUInt32BE(20) === STATIC_SIZE;
 }
 
+/** A ready-made animation strip (like the built-in animated emojis): `frames` FRAME_SIZE squares side by side. */
+function isReadyStrip(buf, frames) {
+  return frames > 1 && typeOf(buf) === 'png' && buf.length > 24 &&
+    buf.readUInt32BE(16) === FRAME_SIZE * frames && buf.readUInt32BE(20) === FRAME_SIZE;
+}
+
 /**
  * Converts an upload into the stored picture.
  * Returns { png: Buffer, frames, fps, size }: frames === 1 for a still image.
@@ -177,4 +183,4 @@ function toStripAsync(buf) {
   });
 }
 
-module.exports = { toStrip, toStripAsync, decode, typeOf, STATIC_SIZE, FRAME_SIZE, MAX_FRAMES, MAX_BYTES };
+module.exports = { toStrip, toStripAsync, isReadyStrip, decode, typeOf, STATIC_SIZE, FRAME_SIZE, MAX_FRAMES, MAX_BYTES };

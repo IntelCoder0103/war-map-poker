@@ -17,15 +17,22 @@ namespace WarPoker.Chat
     public class ChatPicker : MonoBehaviour
     {
         const string HideOthersKey = "chat.hideOthers";
-        const int Cols = 6, MaxEmojis = 30;
-        const float Cell = 98f, EmojiSize = 84f;
         static readonly Vector2 PanelSize = new Vector2(820, 720);
-        static readonly Vector2 MsgSize = new Vector2(340, 46);
+        // Both tabs scroll inside the same area, so items can be big enough for a finger.
+        static readonly Vector2 ViewSize = new Vector2(700, 486);
+        // Emojis: 5 columns of big tiles.
+        const int Cols = 5, MaxEmojis = 30;
+        const float Cell = 124f, EmojiSize = 108f;
+        // Messages: one column of big buttons.
+        static readonly Vector2 MsgSize = new Vector2(640, 76);
+        const float MsgGap = 10f;
+        const int MaxMessages = 20;
 
         public Action<ChatItemDto> OnSend;
 
         ChatCatalog _catalog;
         RectTransform _root, _panel, _emojiGrid, _msgList;
+        ScrollRect _emojiScroll, _msgScroll;
         Button _button, _emojiTab, _msgTab;
         Image _cooldown;
         Text _empty, _hideLabel;
@@ -100,10 +107,8 @@ namespace WarPoker.Chat
             _msgTab = UIKit.Button(_panel, "MessageTab", Strings.Get("ChatMessages"), new Vector2(240, 64), Theme.Leather, Theme.ParchmentLight, 28, () => SetTab(false));
             UIKit.Center((RectTransform)_msgTab.transform, new Vector2(130, PanelSize.y * 0.5f - 72), new Vector2(240, 64));
 
-            _emojiGrid = UIKit.Rect("Emojis", _panel);
-            UIKit.Center(_emojiGrid, new Vector2(0, -8), new Vector2(Cols * Cell, 5 * Cell));
-            _msgList = UIKit.Rect("Messages", _panel);
-            UIKit.Center(_msgList, new Vector2(0, -8), new Vector2(MsgSize.x * 2 + 16, 10 * (MsgSize.y + 3)));
+            _emojiScroll = BuildScroll("Emojis", out _emojiGrid);
+            _msgScroll = BuildScroll("Messages", out _msgList);
 
             _empty = UIKit.Text(_panel, "Empty", "", 28, Theme.InkSoft, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Center(_empty.rectTransform, new Vector2(0, -8), new Vector2(600, 200));
@@ -121,6 +126,50 @@ namespace WarPoker.Chat
 
             _root.gameObject.SetActive(false);
             RefreshHide();
+        }
+
+        // A clipped viewport that scrolls a content column, with a slim scrollbar on the right.
+        ScrollRect BuildScroll(string name, out RectTransform content)
+        {
+            var view = UIKit.Image(_panel, name, null, new Color(0, 0, 0, 0)); // also catches drags between items
+            var viewRt = view.rectTransform;
+            UIKit.Center(viewRt, new Vector2(0, -4), ViewSize);
+            view.gameObject.AddComponent<RectMask2D>();
+
+            content = UIKit.Rect("Content", viewRt);
+            content.anchorMin = new Vector2(0, 1);
+            content.anchorMax = new Vector2(1, 1);
+            content.pivot = new Vector2(0.5f, 1);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+
+            var scroll = view.gameObject.AddComponent<ScrollRect>();
+            scroll.content = content;
+            scroll.viewport = viewRt;
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Elastic;
+            scroll.scrollSensitivity = 40f;
+
+            var track = UIKit.Image(viewRt, "Scrollbar", ProcSprites.RoundedRect(6, 0, 1f), new Color(0f, 0f, 0f, 0.12f));
+            UIKit.Place(track.rectTransform, new Vector2(1, 0.5f), new Vector2(-14, 0), new Vector2(12, ViewSize.y - 8));
+            var area = UIKit.Rect("Area", track.rectTransform);
+            UIKit.Stretch(area);
+            var handle = UIKit.Image(area, "Handle", ProcSprites.RoundedRect(6, 0, 1f), Theme.Leather);
+            UIKit.Stretch(handle.rectTransform);
+            var bar = track.gameObject.AddComponent<Scrollbar>();
+            bar.handleRect = handle.rectTransform;
+            bar.targetGraphic = handle;
+            bar.direction = Scrollbar.Direction.BottomToTop;
+            scroll.verticalScrollbar = bar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            return scroll;
+        }
+
+        static void ResetScroll(ScrollRect scroll, float height)
+        {
+            scroll.content.sizeDelta = new Vector2(0, height);
+            scroll.StopMovement();
+            scroll.content.anchoredPosition = Vector2.zero; // back to the top
         }
 
         public bool IsOpen { get { return _root.gameObject.activeSelf; } }
@@ -183,8 +232,8 @@ namespace WarPoker.Chat
 
             SkinTab(_emojiTab, _showEmojis);
             SkinTab(_msgTab, !_showEmojis);
-            _emojiGrid.gameObject.SetActive(_showEmojis);
-            _msgList.gameObject.SetActive(!_showEmojis);
+            _emojiScroll.gameObject.SetActive(_showEmojis);
+            _msgScroll.gameObject.SetActive(!_showEmojis);
 
             int n = 0;
             if (_showEmojis)
@@ -193,21 +242,23 @@ namespace WarPoker.Chat
                 {
                     if (n >= MaxEmojis) break;
                     int col = n % Cols, rowIdx = n / Cols;
-                    var pos = new Vector2(-Cols * Cell * 0.5f + Cell * (col + 0.5f), 5 * Cell * 0.5f - Cell * (rowIdx + 0.5f));
+                    float left = -(ViewSize.x - Cols * Cell) * 0.5f + 6f; // room for the scrollbar
+                    var pos = new Vector2(left - Cols * Cell * 0.5f + Cell * (col + 0.5f), -Cell * (rowIdx + 0.5f));
                     _cells.Add(EmojiCell(item, pos));
                     n++;
                 }
+                ResetScroll(_emojiScroll, Cell * ((n + Cols - 1) / Cols));
             }
             else
             {
+                float stride = MsgSize.y + MsgGap, left = -(ViewSize.x - MsgSize.x) * 0.5f + 6f; // room for the scrollbar
                 foreach (var item in _catalog.Messages)
                 {
-                    if (n >= 20) break;
-                    int col = n % 2, rowIdx = n / 2;
-                    var pos = new Vector2((col == 0 ? -1 : 1) * (MsgSize.x * 0.5f + 8), 10 * (MsgSize.y + 3) * 0.5f - (MsgSize.y + 3) * (rowIdx + 0.5f));
-                    _cells.Add(MessageCell(item, pos));
+                    if (n >= MaxMessages) break;
+                    _cells.Add(MessageCell(item, new Vector2(left, -MsgGap * 0.5f - stride * n - MsgSize.y * 0.5f)));
                     n++;
                 }
+                ResetScroll(_msgScroll, stride * n);
             }
             _empty.text = n == 0 ? Strings.Get(_catalog.Version < 0 ? "ChatLoading" : "ChatEmpty") : "";
         }
@@ -224,7 +275,7 @@ namespace WarPoker.Chat
         GameObject EmojiCell(ChatItemDto item, Vector2 pos)
         {
             var bg = UIKit.Image(_emojiGrid, "Emoji_" + item.id, ProcSprites.RoundedRect(14, 2, 0.75f), new Color(1f, 1f, 1f, 0.55f));
-            UIKit.Center(bg.rectTransform, pos, new Vector2(Cell - 8, Cell - 8));
+            UIKit.Place(bg.rectTransform, new Vector2(0.5f, 1), pos, new Vector2(Cell - 10, Cell - 10));
             var btn = bg.gameObject.AddComponent<Button>();
             var colors = btn.colors;
             colors.pressedColor = new Color(0.75f, 0.75f, 0.75f, 1f);
@@ -242,10 +293,10 @@ namespace WarPoker.Chat
 
         GameObject MessageCell(ChatItemDto item, Vector2 pos)
         {
-            var b = UIKit.Button(_msgList, "Msg_" + item.id, item.text, MsgSize, Theme.Leather, Theme.ParchmentLight, 22, () => Send(item));
-            UIKit.Center((RectTransform)b.transform, pos, MsgSize);
+            var b = UIKit.Button(_msgList, "Msg_" + item.id, item.text, MsgSize, Theme.Leather, Theme.ParchmentLight, 32, () => Send(item));
+            UIKit.Place((RectTransform)b.transform, new Vector2(0.5f, 1), pos, MsgSize);
             var label = UIKit.ButtonLabel(b);
-            label.resizeTextMinSize = 14;
+            label.resizeTextMinSize = 20;
             return b.gameObject;
         }
 

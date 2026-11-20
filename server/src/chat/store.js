@@ -41,8 +41,14 @@ function createStore({ onChange = () => {} } = {}) {
     return last ? last.order + 1 : 0;
   }
 
+  // A built-in's picture as stored: an animation strip as it is, a still through toStrip.
+  function builtinArt(e) {
+    const file = fs.readFileSync(e.file);
+    return e.frames > 1 ? { png: file, frames: e.frames, fps: e.fps || 12 } : toStrip(file);
+  }
+
   async function addBuiltin(e, enabled) {
-    const art = toStrip(fs.readFileSync(e.file));
+    const art = builtinArt(e);
     return ChatItem.create({
       kind: 'emoji', label: e.label || e.id, builtin: e.id, image: art.png, frames: art.frames, fps: art.fps,
       order: await nextOrder('emoji'), enabled,
@@ -65,10 +71,14 @@ function createStore({ onChange = () => {} } = {}) {
   const store = {
     MAX_TEXT, MAX_LABEL, MAX_ENABLED,
 
-    /** First start: fills an empty database with the built-in emojis and messages. */
+    /**
+     * First start: fills an empty database with the built-in emojis and messages.
+     * Later starts: built-ins whose picture changed in a new version (say, a still that became an
+     * animation) get the new one; their name, on/off and order stay as the admin left them.
+     */
     async init() {
       const existing = await ChatSettings.findById('chat');
-      if (existing) return;
+      if (existing) return store.syncBuiltins();
       await ChatSettings.create({ _id: 'chat', cooldownMs: defaults.COOLDOWN_MS, version: 1 });
       if (await ChatItem.countDocuments()) return;
       for (const e of defaults.builtinEmojis()) await addBuiltin(e, !!e.on);
@@ -169,6 +179,28 @@ function createStore({ onChange = () => {} } = {}) {
       if (!Number.isInteger(v) || v < 500 || v > 60000) throw fail('BAD_COOLDOWN', 'The cooldown must be 500 to 60000 ms.');
       await ChatSettings.updateOne({ _id: 'chat' }, { $set: { cooldownMs: v } }, { upsert: true });
       await changed();
+    },
+
+    /** Updates built-in pictures that differ from the ones shipped. Returns how many changed. */
+    async syncBuiltins() {
+      const shipped = new Map(defaults.builtinEmojis().map((e) => [e.id, e]));
+      const docs = await ChatItem.find({ builtin: { $ne: null } }).select('+image');
+      let updated = 0;
+      for (const d of docs) {
+        const e = shipped.get(d.builtin);
+        if (!e) continue;
+        const art = builtinArt(e);
+        if (d.image && Buffer.from(d.image).equals(art.png) && d.frames === art.frames && d.fps === art.fps) continue;
+        d.image = art.png;
+        d.frames = art.frames;
+        d.fps = art.fps;
+        d.rev = (d.rev || 1) + 1; // a new URL, so apps don't keep the old picture
+        await d.save();
+        images.delete(String(d._id));
+        updated++;
+      }
+      if (updated) await changed();
+      return updated;
     },
 
     /** Adds back built-in emojis that were deleted, switched off (they wait in the library). */
