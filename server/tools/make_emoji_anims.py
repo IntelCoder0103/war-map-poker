@@ -10,7 +10,11 @@ transparency, which a GIF can't have. It also writes "frames" and "fps" into the
     python3 tools/make_emoji_anims.py --sheet out.png   # also a contact sheet of every 3rd frame
     python3 tools/make_emoji_anims.py --gif DIR         # also sample .gif files (for trying uploads)
 
-Needs Pillow. All motion is done in code, in the spirit of Telegram's animated emojis: squash and
+Needs Pillow, and (to keep downloads small) the imagequant package: pip install imagequant. It
+saves each strip as a 256-colour PNG with smooth transparency, the way pngquant does, about a
+quarter of the size and hard to tell apart. Without it the strips are saved in full colour.
+
+All motion is done in code, in the spirit of Telegram's animated emojis: squash and
 stretch with overshoot, and parts that move on their own where a picture allows it (blinking
 eyelids, a chattering jaw, a waving flag, a bulging bicep, a heart that splits), plus effects
 drawn on top (tears, steam, sparkles, Zzz, confetti, coins).
@@ -22,6 +26,11 @@ import random
 import sys
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+
+try:
+    import imagequant
+except ImportError:  # optional: full-colour strips, about 4x bigger
+    imagequant = None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.normpath(os.path.join(HERE, '..'))
@@ -990,8 +999,18 @@ def render(emoji_id):
     strip = Image.new('RGBA', (OUT * N, OUT), (0, 0, 0, 0))
     for i, f in enumerate(frames):
         strip.paste(f, (i * OUT, 0))
-    strip.save(os.path.join(EMOJI, emoji_id + '.png'), optimize=True)
+    save_small(strip, os.path.join(EMOJI, emoji_id + '.png'))
     return frames
+
+
+def save_small(img, path):
+    """Saves as a 256-colour PNG with an alpha palette when imagequant is installed (players
+    download every emoji, often over mobile data), else as a full-colour PNG."""
+    if imagequant is None:
+        img.save(path, optimize=True)
+        return
+    q = imagequant.quantize_pil_image(img, dithering_level=1.0, max_colors=256, min_quality=0, max_quality=100)
+    q.save(path, optimize=True)
 
 
 def write_gif(frames, path):
@@ -1018,6 +1037,8 @@ def update_manifest(ids):
 
 def main():
     args = sys.argv[1:]
+    if imagequant is None:
+        print('note: imagequant is not installed (pip install imagequant), so the strips are saved in full colour, about 4x bigger')
     sheet_path = gif_dir = None
     if '--sheet' in args:
         i = args.index('--sheet')

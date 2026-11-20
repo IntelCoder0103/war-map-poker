@@ -449,7 +449,7 @@ Each built-in emoji is made in two steps:
 1. **The still picture**, in `art/emoji/<id>.png` (256×256). These were drawn for this game with Codex image generation: classic yellow faces with war touches, and knight gauntlets for hands. `assets/emoji/manifest.json` lists every emoji with what it should show.
 2. **The animation**, in `assets/emoji/<id>.png`, which is what the server serves. It's a strip of 24 frames of 128×128 (1.5 s, looping), made from the still by `tools/make_emoji_anims.py`. Each emoji has its own motion in that script: squash and stretch, blinking eyelids, a chattering jaw, a waving flag, a bulging bicep, and effects drawn on top such as tears, steam, sparkles, Zzz, confetti and coins.
 
-Both tools need Pillow; the first also needs the Codex CLI logged in:
+Both tools need Pillow. The first also needs the Codex CLI logged in. The second should have `imagequant` (`pip install imagequant`): it saves the strips as 256-colour PNGs with smooth transparency, about a quarter of the size (around 80 KB each), which matters because every player downloads them, often over mobile data. Without it the strips are saved in full colour.
 
 ```bash
 python3 tools/make_emoji_art.py              # draws every emoji in the manifest that has no still yet

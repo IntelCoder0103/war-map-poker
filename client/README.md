@@ -200,7 +200,8 @@ Tapping one sends it. It pops up over the sender's camp for everyone at that tab
 - **Hide others' messages** (in the picker) turns off other players' bubbles on this phone. It's remembered.
 
 **Nothing about the list is built into the app.** It comes from the server (`GET /chat`) every time the app connects, and again whenever the admin changes it.
-- Emoji pictures are downloaded once and kept on the phone, in `Application.persistentDataPath/chat`. An animation is one image, a strip of 128 px frames side by side (24 frames for the built-ins, about 300 KB). In memory it costs about 1.5 MB of video memory, with no extra copy.
+- **Saving mobile data:** emoji pictures are downloaded once and kept on the phone, in `Application.persistentDataPath/chat`. Each connect fetches only the list (a few KB). A picture is downloaded again only if it changed on the server. Pictures of emojis the admin switched off are kept too, in case they come back. The folder is trimmed to 8 MB, oldest-unused first, and only of pictures the list doesn't use now.
+- An animation is one image: a strip of 128 px frames side by side. The built-ins are 24 frames each, saved as 256-colour PNGs of about 80 KB, so the 22 switched on by default come to about 1.8 MB. In memory each costs about 1.5 MB of video memory, with no extra copy.
 - Adding, removing or reordering emojis and messages is done on the server's admin page, with no app update. See the [server guide](../server/README.md#12-quick-chat-and-the-admin-page).
 
 **Wording and art used by the picker:**

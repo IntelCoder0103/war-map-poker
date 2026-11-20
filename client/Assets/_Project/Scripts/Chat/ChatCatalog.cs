@@ -104,7 +104,14 @@ namespace WarPoker.Chat
             _loading.Add(key);
             string file = Path.Combine(CacheDir, FileName(key));
             byte[] bytes = null;
-            try { if (File.Exists(file)) bytes = File.ReadAllBytes(file); }
+            try
+            {
+                if (File.Exists(file))
+                {
+                    bytes = File.ReadAllBytes(file);
+                    File.SetLastWriteTimeUtc(file, DateTime.UtcNow); // "last used", for the cache cleanup
+                }
+            }
             catch (Exception e) { Debug.LogWarning("[chat] cache read failed: " + e.Message); }
 
             if (bytes == null)
@@ -162,18 +169,56 @@ namespace WarPoker.Chat
             return Unsafe.Replace(imagePath, "_").Trim('_') + ".png";
         }
 
-        // Drops cached pictures the list no longer uses, so the folder doesn't grow forever.
+        // Pictures are kept on the phone to save mobile data, even for emojis the admin switched off
+        // (they may come back). Removed only: an emoji's older picture once it has a new one, and,
+        // past CacheLimit, the longest-unused pictures the list doesn't use now.
+        const long CacheLimit = 8L * 1024 * 1024;
+
         void PruneDiskCache()
         {
             try
             {
                 if (!Directory.Exists(CacheDir)) return;
                 var keep = new HashSet<string>();
-                foreach (var i in Items) if (i.image != null) keep.Add(FileName(i.image));
-                foreach (var f in Directory.GetFiles(CacheDir, "*.png"))
-                    if (!keep.Contains(Path.GetFileName(f))) File.Delete(f);
+                var current = new Dictionary<string, string>(); // file name without the version -> current file
+                foreach (var i in Items)
+                {
+                    if (i.image == null) continue;
+                    string name = FileName(i.image);
+                    keep.Add(name);
+                    current[Unversioned(name)] = name;
+                }
+                var spare = new List<FileInfo>();
+                long total = 0;
+                foreach (var path in Directory.GetFiles(CacheDir, "*.png"))
+                {
+                    var f = new FileInfo(path);
+                    string replacedBy;
+                    if (!keep.Contains(f.Name) && current.TryGetValue(Unversioned(f.Name), out replacedBy))
+                    {
+                        f.Delete(); // an old version of a picture that has changed: never needed again
+                        continue;
+                    }
+                    total += f.Length;
+                    if (!keep.Contains(f.Name)) spare.Add(f);
+                }
+                spare.Sort((a, b) => a.LastWriteTimeUtc.CompareTo(b.LastWriteTimeUtc));
+                foreach (var f in spare)
+                {
+                    if (total <= CacheLimit) break;
+                    total -= f.Length;
+                    f.Delete();
+                }
             }
             catch (Exception e) { Debug.LogWarning("[chat] cache cleanup failed: " + e.Message); }
+        }
+
+        // "chat_img_<id>_png_r_<rev>.png" -> "chat_img_<id>_png_r"
+        static string Unversioned(string fileName)
+        {
+            string n = fileName.EndsWith(".png") ? fileName.Substring(0, fileName.Length - 4) : fileName;
+            int cut = n.LastIndexOf('_');
+            return cut > 0 ? n.Substring(0, cut) : n;
         }
     }
 }
