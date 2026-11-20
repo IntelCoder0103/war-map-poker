@@ -71,7 +71,7 @@ Standard No-Limit Hold'em:
 - Private rooms play by the same rules as public ones, are not listed in the lobby, and close when the last player leaves.
 
 ## Quick chat
-- At the table, a chat button (bottom-left) opens a picker with two tabs: **Emojis** and **Messages**. Tapping one sends it.
+- At the table, a chat button (bottom-left), or a tap on your own camp, opens a picker with two tabs: **Emojis** and **Messages**. Tapping one sends it.
 - It shows to everyone at the table as a bubble over the sender's camp for about 3 seconds, with a soft pop sound: a big emoji (it pops in and bobs; uploaded GIFs play their animation) or a short line on a parchment bubble.
 - Players pick only from the server's list, so nothing needs moderating. Only seated players can send, at most one item every 3 seconds (adjustable).
 - "Hide others' messages" in the picker turns off other players' bubbles on that phone.

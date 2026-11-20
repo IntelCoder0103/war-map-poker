@@ -131,7 +131,8 @@ namespace WarPoker.Chat
             if (!on) Close();
         }
 
-        void Toggle()
+        /// <summary>Opens the picker, or closes it if it's open (the chat button, or a tap on my own camp).</summary>
+        public void Toggle()
         {
             if (IsOpen) { Close(); return; }
             if (_catalog.Version < 0) _catalog.Refresh(); // never loaded (server unreachable at connect): try again

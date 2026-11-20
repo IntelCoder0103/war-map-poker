@@ -188,6 +188,15 @@ namespace WarPoker.Game
             _chatLayer = UIKit.Stretch(UIKit.Rect("ChatBubbles", _board));
             _chatPicker = ChatPicker.Create(_board, App.Chat, ChatButtonPos, ChatPanelCorner);
             _chatPicker.OnSend = SendChat;
+
+            // Tapping my own camp (display slot 0) opens the picker too. The camp itself ignores taps,
+            // so an invisible hit area sits over it, just under the picker.
+            var hit = UIKit.Image(_board, "MyCampChat", null, new Color(0, 0, 0, 0));
+            UIKit.Center(hit.rectTransform, _seats[0].Rect.anchoredPosition, SeatView.CampSize);
+            hit.gameObject.AddComponent<Button>().onClick.AddListener(_chatPicker.Toggle);
+            hit.transform.SetSiblingIndex(_chatPicker.transform.GetSiblingIndex());
+            _myCampHit = hit.gameObject;
+            _myCampHit.SetActive(false);
         }
 
         static readonly Vector2 ChatButtonPos = new Vector2(-850, -462);
@@ -195,6 +204,7 @@ namespace WarPoker.Game
         static readonly Vector2 BoardHalf = new Vector2(960, 540);
         RectTransform _chatLayer;
         ChatPicker _chatPicker;
+        GameObject _myCampHit;
         readonly Dictionary<int, ChatBubble> _bubbles = new Dictionary<int, ChatBubble>();
 
         void SendChat(ChatItemDto item)
@@ -401,6 +411,7 @@ namespace WarPoker.Game
             _dialogText.text = broke ? Strings.BrokeDetail : Strings.RemovedReason(_removedReason);
             _dialog.SetActive(true);
             _chatPicker.SetVisible(false);
+            _myCampHit.SetActive(false);
             _dialog.transform.SetAsLastSibling();
             var panel = _dialog.transform.GetChild(0);
             panel.localScale = Vector3.one * 0.6f;
@@ -598,7 +609,9 @@ namespace WarPoker.Game
         {
             if (s == null) return;
             _state = s;
-            _chatPicker.SetVisible(s.yourSeat >= 0 && !_dialog.activeSelf);
+            bool canChat = s.yourSeat >= 0 && !_dialog.activeSelf;
+            _chatPicker.SetVisible(canChat);
+            if (_myCampHit.activeSelf != canChat) _myCampHit.SetActive(canChat);
             if (s.bigBlind > 0) TroopStackView.Unit = s.bigBlind;
             int max = Mathf.Clamp(s.maxSeats, 1, MaxSeats);
             _centerMsg.text = "";

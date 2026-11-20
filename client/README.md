@@ -187,7 +187,7 @@ Third-party art, fonts and sounds, with their licences, are listed in [CREDITS.m
 
 ## 8. Quick chat
 
-Players at a table can send an emoji or a short message. The **chat button** sits at the bottom-left of the table and opens a picker with two tabs:
+Players at a table can send an emoji or a short message. The **chat button** sits at the bottom-left of the table. It, or a tap on your own camp, opens a picker with two tabs:
 - **Emojis:** a grid of up to 30.
 - **Messages:** up to 20 short lines.
 
