@@ -2,12 +2,14 @@ const { verify } = require('../auth/token');
 const User = require('../db/User');
 const wallet = require('../db/wallet');
 
-function attachSockets(io, manager, log) {
+function attachSockets(io, manager, log, chat) {
   const sockets = new Map(); // userId -> socket (one live socket per user)
+  const lastChat = new Map(); // userId -> time of their last chat message (cooldown)
   const recentInvites = new Map(); // "from:to" -> time of the last invite (simple flood guard)
   setInterval(() => {
     const old = Date.now() - 60000;
     for (const [k, t] of recentInvites) if (t < old) recentInvites.delete(k);
+    for (const [k, t] of lastChat) if (t < old) lastChat.delete(k);
   }, 60000).unref();
 
   io.use(async (socket, next) => {
@@ -131,6 +133,24 @@ function attachSockets(io, manager, log) {
       const r = await seatedTable().setLeaveAfterHand(user.userId, on !== false);
       return { leftNow: r.leftNow, balance: r.user ? r.user.balance : null };
     });
+    // Quick chat: an emoji or message from the server's list, shown over the sender's camp to everyone at the table.
+    on('table:chat', async ({ id }) => {
+      const t = seatedTable();
+      const seat = t.seatOf(user.userId);
+      if (seat < 0) throw Object.assign(new Error('NOT_SEATED'), { code: 'NOT_SEATED' });
+      const item = chat && await chat.enabledItem(id);
+      if (!item) throw Object.assign(new Error('UNKNOWN_ITEM'), { code: 'UNKNOWN_ITEM' });
+      const { cooldownMs } = await chat.catalog();
+      const now = Date.now();
+      if ((lastChat.get(user.userId) || 0) > now - cooldownMs) throw Object.assign(new Error('COOLDOWN'), { code: 'COOLDOWN' });
+      lastChat.set(user.userId, now);
+      const msg = { seat, id: item.id };
+      for (const s of t.seats) {
+        if (!s || s.ghost) continue;
+        const target = sockets.get(s.userId);
+        if (target) target.emit('table:chat', msg);
+      }
+    });
     on('table:sync', () => {
       socket.emit('table:state', seatedTable().snapshotFor(user.userId));
     });
@@ -150,6 +170,9 @@ function attachSockets(io, manager, log) {
     },
     lobby(rooms) {
       io.to('lobby').emit('lobby:rooms', { rooms });
+    },
+    all(event, payload) {
+      io.emit(event, payload);
     },
   };
 }

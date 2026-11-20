@@ -12,6 +12,7 @@ Wording, art and game settings live in a few files, so you can change them witho
 | Colours | `client/Assets/_Project/Scripts/UI/Theme.cs` | Rebuild the app |
 | Rooms, buy-ins, blinds, starting soldiers, refill, turn and idle timers | `server/config.json` | Restart the server |
 | Server port, database, secret | Environment variables `PORT`, `MONGO_URL`, `JWT_SECRET` | Restart the server |
+| Quick-chat emojis and messages, and the chat cooldown | The admin page at `http://<server>/admin` (needs `ADMIN_PASSWORD` set on the server) | Nothing: apps update within seconds |
 
 Every config file is optional, and so is every line in it. Anything you leave out keeps its built-in default.
 

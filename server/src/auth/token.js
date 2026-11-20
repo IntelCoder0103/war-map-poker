@@ -9,6 +9,7 @@ function sign(user) {
 function verify(token) {
   try {
     const p = jwt.verify(token, config.jwtSecret);
+    if (!p.sub || p.role) return null; // admin tokens are not player logins
     return { userId: p.sub, username: p.username };
   } catch (e) {
     return null;

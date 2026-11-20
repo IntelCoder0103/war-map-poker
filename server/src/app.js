@@ -7,6 +7,9 @@ const config = require('./config');
 const wallet = require('./db/wallet');
 const { TableManager } = require('./game/tableManager');
 const { attachSockets } = require('./socket/handlers');
+const { createStore } = require('./chat/store');
+const chatRoutes = require('./chat/routes');
+const path = require('path');
 
 async function startServer(overrides = {}) {
   const cfg = { ...config, ...overrides };
@@ -17,8 +20,17 @@ async function startServer(overrides = {}) {
   const recovered = await wallet.recover();
   if (recovered) log(`returned table soldiers to ${recovered} player(s) after restart`);
 
+  let bridge = null;
+  const chat = createStore({ onChange: (version) => bridge && bridge.all('chat:updated', { version }) });
+  await chat.init();
+
   const app = express();
+  app.set('trust proxy', 'loopback'); // behind nginx on the same machine, req.ip is the real address
+  // The admin API takes picture uploads, so it parses its own (bigger) bodies: mount it before the 10 kB parser.
+  app.use('/admin/api', chatRoutes.adminRouter(chat, { password: cfg.adminPassword, secret: cfg.jwtSecret, log }));
+  app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
   app.use(express.json({ limit: '10kb' }));
+  app.use('/chat', chatRoutes.publicRouter(chat));
   app.get('/health', (req, res) => res.json({ ok: true }));
   app.use('/auth', require('./auth/routes'));
   app.use('/me', require('./account/routes'));
@@ -30,7 +42,6 @@ async function startServer(overrides = {}) {
     maxHttpBufferSize: 10000,
   });
 
-  let bridge = null;
   const manager = new TableManager({
     levels: cfg.levels,
     privateRooms: cfg.privateRooms,
@@ -47,7 +58,7 @@ async function startServer(overrides = {}) {
       onLobbyChange: (rooms) => bridge && bridge.lobby(rooms),
     },
   });
-  bridge = attachSockets(io, manager, log);
+  bridge = attachSockets(io, manager, log, chat);
 
   app.get('/rooms', (req, res) => res.json({ rooms: manager.rooms(), privateRooms: manager.privateLimits() }));
   // eslint-disable-next-line no-unused-vars
@@ -61,6 +72,7 @@ async function startServer(overrides = {}) {
   return {
     port: server.address().port,
     manager,
+    chat,
     async close() {
       manager.dispose();
       await new Promise((resolve) => io.close(() => resolve())); // also closes the HTTP server

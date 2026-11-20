@@ -18,6 +18,8 @@ ENV NODE_ENV=production PORT=3000
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
+COPY admin ./admin
+COPY assets ./assets
 COPY config.json ./
 USER node
 EXPOSE 3000

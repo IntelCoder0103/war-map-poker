@@ -8,7 +8,7 @@ namespace WarPoker.FX
     /// Sound effects. Clips live in Resources/Audio named {sound}_{n}.ogg (deal_1, deal_2, ...);
     /// Play("deal") picks one of them at random, so adding variants or replacing a sound needs no code.
     /// Sounds: click, deal, shuffle, flip, check, fold, march, allin, ready, join, leave, turn, tick,
-    /// coins, fall, win, lose, notify. The on/off switch is kept in PlayerPrefs.
+    /// coins, fall, win, lose, notify, chat. The on/off switch is kept in PlayerPrefs.
     /// </summary>
     public static class Sfx
     {
@@ -23,7 +23,7 @@ namespace WarPoker.FX
             { "check", 0.55f }, { "fold", 1f }, { "march", 0.45f }, { "allin", 0.5f },
             { "ready", 0.6f }, { "join", 0.45f }, { "leave", 0.4f }, { "turn", 0.55f },
             { "tick", 0.5f }, { "coins", 0.8f }, { "fall", 0.7f }, { "win", 0.55f },
-            { "lose", 0.45f }, { "notify", 0.5f },
+            { "lose", 0.45f }, { "notify", 0.5f }, { "chat", 0.6f },
         };
 
         // Music cues keep their pitch; everything else is varied a little so repeats don't sound robotic.

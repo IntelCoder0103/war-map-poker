@@ -53,7 +53,7 @@ Animations and effects are on the game screen only: dealing, card flips, troops 
 7. **Disconnects:** a disconnected player keeps their seat for 60 seconds, then is removed and their soldiers go back to their balance.
 
 ## Cards
-- A standard card shape. A narrow strip down the left side shows the rank above the suit symbol.
+- A standard card shape. A narrow strip down the left side shows the suit at the top and the rank at the bottom.
 - The large main area is an image slot. It holds placeholder art now, and the client's art can drop in per card without code changes.
 - Card backs come from the same art slots. See client/README.md for the art slot paths.
 
@@ -70,9 +70,17 @@ Standard No-Limit Hold'em:
 - Anyone can also use "Join with code" in the lobby.
 - Private rooms play by the same rules as public ones, are not listed in the lobby, and close when the last player leaves.
 
+## Quick chat
+- At the table, a chat button (bottom-left) opens a picker with two tabs: **Emojis** and **Messages**. Tapping one sends it.
+- It shows to everyone at the table as a bubble over the sender's camp for about 3 seconds, with a soft pop sound: a big emoji (it pops in and bobs; uploaded GIFs play their animation) or a short line on a parchment bubble.
+- Players pick only from the server's list, so nothing needs moderating. Only seated players can send, at most one item every 3 seconds (adjustable).
+- "Hide others' messages" in the picker turns off other players' bubbles on that phone.
+- The list starts with 20 emojis switched on, 20 more waiting in a library, and 16 war-themed messages. The emojis were drawn for this game with Codex image generation: classic yellow faces with war touches (a helmet on 😎, a dented helmet on 💀) and knight gauntlets for hands.
+- **Admin page** at `http://<server>/admin`, behind one shared password (`ADMIN_PASSWORD`): switch items on or off, reorder, edit, delete, add messages, upload PNG or GIF emojis, set the cooldown. Changes reach the apps within seconds, with no app update.
+
 ## Not in this version
 - Real-money purchases or ads
-- Chat
+- Free-text chat (quick chat uses the server's list only)
 - Friend lists (invites go by username)
 - Leaderboards
 - Music (there are sound effects, see `client/README.md`)

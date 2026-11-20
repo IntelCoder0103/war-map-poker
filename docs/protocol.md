@@ -45,9 +45,16 @@ There is one soldier type. To draw an amount, show the number next to a squad of
 | `POST /me/refill` | — | `200 { user }` | `400 REFILL_NOT_AVAILABLE` |
 | `GET /rooms` | — | `200 { rooms: [Room], privateRooms: PrivateLimits }` | — |
 | `GET /health` | — | `200 { ok: true }` | — |
+| `GET /chat` | — | `200 { version, cooldownMs, items: [ChatItem] }` | — |
+| `GET /chat/img/<id>.png?r=<rev>` | — | `200` PNG: a square, or a strip of square frames | `404` |
 
 - `/me` and `/me/refill` need the header `Authorization: Bearer <token>`.
 - **PrivateLimits:** `{ minBuyIn, maxBuyIn, minStackBigBlinds }`: what a player may choose when creating a private room.
+- **ChatItem:** `{ id, kind: "emoji" | "text", text, label, image, frames, fps }`. Only switched-on items are listed, in the admin's order.
+  - `text` is the message (kind `text`); `label` names an emoji.
+  - `image` is the path of the picture (emoji only). It changes when the picture changes, so it can be cached forever.
+  - The picture is `frames` square frames side by side (frame 0 on the left), played at `fps`. `frames: 1` is a still picture.
+  - `cooldownMs`: the shortest time between two chat messages from one player.
 - **Room object:** `{ id, name, buyIn, smallBlind, bigBlind, players, tables, maxSeats: 8 }`. `players` counts everyone seated across all tables at that level.
 
 ## Socket.IO
@@ -72,6 +79,7 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 | `table:show` | `{}` | `{ ok }` | Only for the player who just won because everyone else folded, until the next hand starts (`canShowCards` in the snapshot). Reveals their hole cards to the table. Error: `CANNOT_SHOW` |
 | `table:leaveAfterHand` | `{ on }` | `{ ok, leftNow, balance }` | The Retreat toggle. With no cards in hand (between hands, or already folded) you leave at once (`leftNow: true`, `balance` is your new balance). Holding cards, `on: true` marks you as retreating: you keep playing, and you are removed (`table:removed {reason:"left"}`) the moment you fold (yourself or on the turn timer) or, if you never fold, when the hand ends. `on: false` cancels. |
 | `table:sync` | `{}` | `{ ok }` | The server sends a fresh `table:state` |
+| `table:chat` | `{ id }` | `{ ok }` | Quick chat: sends an emoji or message from `GET /chat` to everyone at your table (you included), as `table:chat`. Errors: `NOT_SEATED`, `UNKNOWN_ITEM` (not in the list, or switched off), `COOLDOWN` (sent again within `cooldownMs`). |
 
 ### Server → client
 | Event | Payload |
@@ -83,6 +91,8 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 | `table:removed` | `{ reason }`, where `reason` is `broke`, `left`, `timeout` (disconnected too long) or `idle` (missed 3 turns in a row, or didn't press Ready in time). For anything but `left`, let the current hand finish on screen, then show a dialog with a button back to the lobby. |
 | `session:replaced` | `{}` |
 | `room:invite` | `{ from, code, buyIn, smallBlind, bigBlind, players, maxSeats }`. To accept, send `room:joinCode { code }`. |
+| `table:chat` | `{ seat, id }`: the player in `seat` sent chat item `id`. It is not a `table:event` (no `seq`), so it never waits behind hand animations. |
+| `chat:updated` | `{ version }`, sent to every connected app when the admin changes the chat list. Fetch `GET /chat` again if your version differs. |
 
 ### Private rooms
 - Hidden from the room list. Players reach them only with the code (6 letters and digits, without the look-alike 0, O, 1 and I) or an invite.
@@ -165,3 +175,24 @@ Every request takes an ack callback, which is called with `{ ok: true, ... }` or
 7. **Disconnects:** if you're disconnected for more than 60 seconds, you're removed (`timeout`), and your stack goes back to your balance.
 8. **Idle:** missing 3 turns in a row removes you (`idle`). While waiting, once 2 or more players are ready, the others have 30 seconds (`readyDeadline`) to press Ready, or they are removed (`idle`).
 9. **Leaving all-in:** you stay in the hand (shown offline to others) and are paid when it ends.
+
+## Admin API (`/admin/api`)
+Used by the admin page at `/admin`. It is switched off (every call answers `404 ADMIN_DISABLED`) unless the server has `ADMIN_PASSWORD` set.
+
+- `POST /admin/api/login { password }` → `{ token }`, valid for 12 hours. Five wrong passwords from one address lock it out for a minute (`429 TOO_MANY_ATTEMPTS`).
+- Every other call needs `Authorization: Bearer <token>`. Player tokens don't work here, and admin tokens don't work as player logins.
+- Errors are `{ error, message }`; `message` is readable text for the admin.
+
+| Method + path | Body | Does |
+|---|---|---|
+| `GET /chat` | — | Every item, switched off too: `{ version, cooldownMs, maxEnabled: { emoji: 30, text: 20 }, maxText: 40, missingBuiltins, items: [ChatItem + { enabled, builtin }] }` |
+| `POST /chat/text` | `{ text }` | Adds a message (1–40 characters), switched on. `TOO_MANY_ENABLED` when 20 are already on. |
+| `POST /chat/emoji` | `{ label, data }` | Uploads a picture: `data` is a base64 PNG or GIF (a `data:` URL is fine), 2 MB at most. A still image is stored at 256×256; an animated GIF becomes a strip of 128×128 frames (48 at most). Switched on unless 30 emojis already are. `BAD_IMAGE`, `IMAGE_TOO_BIG`. |
+| `PATCH /chat/<id>` | `{ text?, label?, enabled? }` | Edits or switches an item on or off. |
+| `DELETE /chat/<id>` | — | Deletes it. |
+| `PUT /chat/order` | `{ ids: [...] }` | Puts these items in this order (first = shown first). |
+| `PUT /settings` | `{ cooldownMs }` | 500–60000 ms. |
+| `POST /chat/restore` | — | Adds back deleted built-in emojis, switched off. `{ added }` |
+
+Every change raises the list's `version` and sends `chat:updated` to all connected apps.
+

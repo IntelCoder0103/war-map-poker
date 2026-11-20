@@ -22,7 +22,8 @@ The server is the only authority. It shuffles, deals and enforces the rules, and
 9. [API at a glance](#9-api-at-a-glance)
 10. [How the server works](#10-how-the-server-works)
 11. [Running in production](#11-running-in-production)
-12. [Troubleshooting](#12-troubleshooting)
+12. [Quick chat and the admin page](#12-quick-chat-and-the-admin-page)
+13. [Troubleshooting](#13-troubleshooting)
 
 ---
 
@@ -214,6 +215,7 @@ The server checks the file when it starts. If a setting can't work, it refuses t
 | `MONGO_URL` | `mongodb://localhost:27017/warpoker` | The database. The database name is the last part. |
 | `JWT_SECRET` | `dev-only-secret-change-me` | Signs login tokens. **Set a long random value on any real server.** If you change it, everyone has to log in again. |
 | `CONFIG_FILE` | `server/config.json` | Use a different game-settings file. |
+| `ADMIN_PASSWORD` | (none: admin page off) | Switches on the admin page at `/admin` (§12) and is its password. |
 | `TURN_TIME_MS`, `NEXT_HAND_DELAY_MS`, `SHOWDOWN_DELAY_MS`, `DISCONNECT_GRACE_MS`, `IDLE_TIMEOUTS`, `READY_TIMEOUT_MS` | from `config.json` | Override single timers, mainly for tests. |
 
 The order of precedence is built-in defaults → `config.json` → environment variables (later wins).
@@ -241,6 +243,7 @@ node tools/bots.js --url http://localhost:3000 --level recruit --count 3
 | `--url` | `http://localhost:3000` | Server address. Inside Docker, the server is `http://server:3000`. |
 | `--level` | `recruit` | Room id from `config.json` (`recruit`, `soldier`, `captain`, `general`, `king`) |
 | `--count` | `3` | Number of bots (8 seats per table; extra players open another table) |
+| `--chat` | `0.1` | Chance that a bot sends a chat emoji or message after acting (three times as likely after winning a pot). `0` turns it off. |
 
 Then join the same room from the app and press **Ready**.
 
@@ -270,6 +273,8 @@ npx jest test/integration/rules.test.js   # a single file
 | Private rooms | Custom stakes and their limits, join by code, invites, full rooms, the room closing when empty. |
 | Bots | 9 bots over real sockets for 40+ hands: a second table opens, a bot drops and times out, broke bots rejoin. Afterwards every soldier must be back in the database, and no player may have seen another player's hole cards before showdown. |
 | Reconnect | A player reconnecting mid-hand keeps their seat and cards; a second login replaces the first connection. |
+| Quick chat | The list and its pictures; sending to the table (and only that table); the cooldown; unknown and switched-off items. |
+| Admin page | Password and lockout, admin and player tokens kept apart, adding, editing, ordering, limits, PNG and GIF uploads, the live push to apps, and the page switched off without a password. |
 
 ---
 
@@ -287,6 +292,8 @@ The full contract, with every payload, error code and the snapshot format, is in
 | `POST /me/refill` | Free soldiers when the balance is low; limited by `refill` in `config.json`. |
 | `GET /rooms` | Room levels with live player counts, and the private-room limits. |
 | `GET /health` | `{"ok":true}`. Use it for uptime checks. |
+| `GET /chat`, `GET /chat/img/<id>.png` | The quick-chat list and its emoji pictures |
+| `/admin`, `/admin/api/...` | The admin page and its API (§12) |
 
 **Socket.IO.** Connect with `io(url, { auth: { token }, transports: ["websocket"] })`.
 
@@ -298,12 +305,14 @@ The full contract, with every payload, error code and the snapshot format, is in
 | `table:ready`, `table:action {type, amount}`, `table:show` | Playing |
 | `table:leave`, `table:leaveAfterHand {on}` | Leaving and Retreat |
 | `table:sync` | Ask for a fresh snapshot |
+| `table:chat {id}` | Send a quick-chat emoji or message |
 
 | The server sends | When |
 |---|---|
 | `table:state` | A full snapshot for this player (after joining, reconnecting, or `table:sync`) |
 | `table:event` | Something happened (`handStarted`, `action`, `street`, `showdown`, `potAwarded`, …), plus the new snapshot |
 | `lobby:rooms`, `user:balance`, `table:removed`, `room:invite`, `session:replaced` | Lobby counts, balance changes, removal from a table, invites, logged in elsewhere |
+| `table:chat`, `chat:updated` | Someone at the table chatted; the admin changed the chat list |
 
 ---
 
@@ -319,8 +328,12 @@ The full contract, with every payload, error code and the snapshot format, is in
 | `src/game/tableManager.js` | The room levels and their tables (opens another table when one is full), and private rooms |
 | `src/db/User.js`, `src/db/wallet.js` | Accounts, and every soldier movement as a single atomic MongoDB update |
 | `src/auth/`, `src/account/` | REST: register, login, `/me`, refill |
-| `src/socket/handlers.js` | Socket login check, and the lobby, room and table events |
+| `src/socket/handlers.js` | Socket login check, and the lobby, room, table and chat events |
+| `src/chat/` | Quick chat: the list (`store.js`, `model.js`, `defaults.js`), its HTTP routes and the admin API (`routes.js`), PNG/GIF conversion (`images.js`) |
+| `admin/index.html` | The admin page (plain HTML and JavaScript, no build step) |
+| `assets/emoji/` | Built-in emoji pictures and their list (`manifest.json`) |
 | `tools/bots.js` | Test bots |
+| `tools/make_emoji_art.py` | Draws the built-in emojis with Codex (§12) |
 | `test/unit`, `test/integration` | Jest tests |
 
 **How soldiers are kept safe:**
@@ -335,6 +348,7 @@ The full contract, with every payload, error code and the snapshot format, is in
 
 **Checklist:**
 - [ ] Set a strong `JWT_SECRET`, for example from `openssl rand -hex 32`.
+- [ ] If you use the admin page, set a long `ADMIN_PASSWORD`, and only open `/admin` over HTTPS.
 - [ ] Put the server behind HTTPS (nginx or Caddy, see below), and set the app's server address to `https://…`. Then turn off plain HTTP in the app (see the client guide).
 - [ ] Keep MongoDB reachable from this machine only. The compose file already binds it to `127.0.0.1`. Otherwise turn on MongoDB authentication.
 - [ ] Back up the database regularly (§5).
@@ -389,7 +403,66 @@ server {
 
 ---
 
-## 12. Troubleshooting
+## 12. Quick chat and the admin page
+
+At the table, players can send an emoji or a short message from a list the server keeps. It pops up over their camp for everyone at that table. Players can't type their own text, so nothing needs moderating.
+
+### Switching on the admin page
+The list is managed on a small web page served by the game server. It is **off until you set a password**:
+
+```bash
+# Docker: put it in server/.env (next to docker-compose.yml), then restart
+echo "ADMIN_PASSWORD=pick-a-long-password" >> .env
+docker compose up -d
+
+# Without Docker
+ADMIN_PASSWORD='pick-a-long-password' npm start
+```
+
+Open **`http://<server address>/admin`**, for example `http://localhost:3000/admin`, and log in with that password. Everyone who manages the list shares the one password.
+
+**What the page can do:**
+
+| Section | You can |
+|---|---|
+| Settings | Set the wait between two messages from the same player (default 3 seconds). |
+| Emojis | Switch each on or off, rename, move up or down, delete. Upload your own PNG or GIF (2 MB at most; square with a transparent background looks best). Animated GIFs play in the game. Add back deleted built-in emojis. |
+| Messages | Add a line (40 characters at most), edit, switch on or off, move, delete. |
+
+- Changes reach players' apps within seconds. No app update or server restart is needed.
+- Up to **30 emojis** and **20 messages** can be on at once; that's what fits the app's picker. Switched-off items stay on the page as a library.
+- **Brute force:** five wrong passwords from one address lock that address out for a minute.
+- **On the internet:** serve the page over HTTPS (§11), so the password isn't sent in the clear.
+
+### What a new database starts with
+- **40 built-in emojis**, 20 switched on: 👍 👏 😂 🤣 😎 🤔 😱 😭 😡 🔥 💪 🙏 🤝 🎉 👑 🏆 ⚔️ 🛡️ 💀 🍀
+- **20 more in the library:** 😴 🤡 🤯 😈 💯 🥳 🫡 👀 💔 🐔 ❤️ 💰 😉 🙄 😏 💣 🏳️ 🎯 🐢 🍻
+- **16 war-themed messages**, such as "Charge!", "Hold the line!" and "I smell a bluff…"
+
+The list lives in MongoDB (collections `chatitems` and `chatsettings`, pictures included), so a normal database backup covers it. The defaults are added only when the database has no chat list yet.
+
+### The built-in emoji pictures
+They're in `assets/emoji/`, one 256×256 PNG per emoji, listed in `assets/emoji/manifest.json` with what each one should show. They were drawn for this game with Codex image generation: classic yellow faces with war touches, and knight gauntlets for hands.
+
+To redraw some, delete their PNGs and run the generator. It needs the Codex CLI logged in, and Pillow:
+
+```bash
+python3 tools/make_emoji_art.py              # draws every emoji in the manifest that has no PNG yet
+python3 tools/make_emoji_art.py fire skull   # only these (delete their PNGs first)
+```
+
+A new database picks up the new pictures. An existing one keeps what it stored; upload replacements on the admin page instead.
+
+### How it works
+- The app loads the list from `GET /chat` when it connects, and keeps the pictures on the phone.
+- Sending is the socket message `table:chat {id}`. The server checks that the player is seated, the item is switched on, and the cooldown has passed, then sends `table:chat {seat, id}` to everyone at the table.
+- Every admin change bumps a version number and sends `chat:updated` to all connected apps, which reload the list.
+- Uploaded GIFs are turned into a strip of frames on the server, because the app can't read GIFs.
+- Details: [../docs/protocol.md](../docs/protocol.md).
+
+---
+
+## 13. Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|

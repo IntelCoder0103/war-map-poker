@@ -18,12 +18,13 @@ The app only shows what the server sends and passes on what the player chose. Th
 5. [Server address](#5-server-address)
 6. [Config files](#6-config-files)
 7. [Art you can replace](#7-art-you-can-replace)
-8. [Sound effects](#8-sound-effects)
-9. [How the code is organised](#9-how-the-code-is-organised)
-10. [Testing](#10-testing)
-11. [Before a store release](#11-before-a-store-release)
-12. [Troubleshooting](#12-troubleshooting)
-13. [Unity 2022.1 on newer Linux](#13-unity-20221-on-newer-linux)
+8. [Quick chat](#8-quick-chat)
+9. [Sound effects](#9-sound-effects)
+10. [How the code is organised](#10-how-the-code-is-organised)
+11. [Testing](#11-testing)
+12. [Before a store release](#12-before-a-store-release)
+13. [Troubleshooting](#13-troubleshooting)
+14. [Unity 2022.1 on newer Linux](#14-unity-20221-on-newer-linux)
 
 ---
 
@@ -184,7 +185,31 @@ Third-party art, fonts and sounds, with their licences, are listed in [CREDITS.m
 
 ---
 
-## 8. Sound effects
+## 8. Quick chat
+
+Players at a table can send an emoji or a short message. The **chat button** sits at the bottom-left of the table and opens a picker with two tabs:
+- **Emojis:** a grid of up to 30.
+- **Messages:** up to 20 short lines.
+
+Tapping one sends it. It pops up over the sender's camp for everyone at that table for about 3 seconds, with a soft pop sound.
+- **Emojis** pop in and bob gently; animated ones (uploaded GIFs) play their frames.
+- **Messages** show on a parchment speech bubble.
+- **Cooldown:** after sending, the button shows a shrinking dark wedge until the player can send again (3 seconds by default).
+- **Hide others' messages** (in the picker) turns off other players' bubbles on this phone. It's remembered.
+
+**Nothing about the list is built into the app.** It comes from the server (`GET /chat`) every time the app connects, and again whenever the admin changes it.
+- Emoji pictures are downloaded once and kept on the phone, in `Application.persistentDataPath/chat`.
+- Adding, removing or reordering emojis and messages is done on the server's admin page, with no app update. See the [server guide](../server/README.md#12-quick-chat-and-the-admin-page).
+
+**Wording and art used by the picker:**
+- Tab and switch labels: `ChatEmojis`, `ChatMessages`, `ChatHideOthers`, `ChatLoading`, `ChatEmpty` in `text.json`.
+- Errors: `Error.UNKNOWN_ITEM`, `Error.COOLDOWN`.
+- Button icon: `UI/icon_chat.png` and `UI/icon_chat_pressed.png`, drawn by `Tools/make_sound_icons.py`.
+- Position: `ChatButtonPos` and `ChatPanelCorner` in `Scripts/Game/GameScreen.cs`.
+
+---
+
+## 9. Sound effects
 
 The clips are in `Assets/_Project/Resources/Audio/`, named `{sound}_{n}.ogg`. Each time a sound plays, the app picks one of its variants at random.
 - **More variety:** add another variant, for example `deal_5.ogg`.
@@ -205,10 +230,11 @@ A speaker button in the lobby, and next to Retreat at the table, turns sound on 
 | `turn`, `tick` | Your turn starts; each of your last 5 seconds |
 | `coins`, `win`, `lose`, `fall` | The pot is won; you won; you lost a hand you played to the end; a busted player's soldiers fall |
 | `notify` | An invite to a private room arrives |
+| `chat` | A quick-chat bubble pops up over a camp |
 
 ---
 
-## 9. How the code is organised
+## 10. How the code is organised
 
 **One scene, everything built in code:**
 - `Main.unity` holds a camera and a `Bootstrap` object. `Bootstrap` creates `App`, which builds all of the interface from code and switches between three screens: **Login → Lobby → Game**.
@@ -220,6 +246,7 @@ A speaker button in the lobby, and next to Retreat at the table, turns sound on 
 | `App/` | `App` (screens, socket events, toasts), `Bootstrap`, `Session` (login token, saved for auto-login), `GameSettings` (reads `game.json`) |
 | `Auth/` | Login and register screen, with the Server field |
 | `Lobby/` | Balance and refill, the room grid (3×2 squares), private rooms (create, join by code, invites) |
+| `Chat/` | Quick chat: `ChatCatalog` (loads the list from the server, downloads and caches emoji pictures), `ChatPicker` (the chat button and the Emojis / Messages picker), `ChatBubble` (the bubble over a camp) |
 | `Game/` | `GameScreen` (the table, event animations, showdown board), `SeatView` (a player's camp), `ActionBar` (Fold, Check/Call, Raise, All-in), `MapArt` (the map drawn in code) |
 | `Cards/` | `CardView` (a card), `CardArt` (finds pictures, with drawn fallbacks) |
 | `Troops/` | Soldier sprites and the squad shown for an amount |
@@ -238,7 +265,7 @@ A speaker button in the lobby, and next to Retreat at the table, turns sound on 
 
 ---
 
-## 10. Testing
+## 11. Testing
 
 **More than one player:**
 - **Editor + phone:** run the server on your PC, and on the phone use your PC's LAN IP (section 5).
@@ -253,7 +280,7 @@ A speaker button in the lobby, and next to Retreat at the table, turns sound on 
 
 ---
 
-## 11. Before a store release
+## 12. Before a store release
 
 - [ ] **Signing:** the builds are signed with Unity's debug key. Create your own keystore in Player Settings → Publishing Settings, and **keep it safe**: updates must be signed with the same key. Don't commit it; `*.keystore` and `*.jks` are git-ignored. Then set `useCustomKeystore = true` in `Editor/AndroidBuild.cs`, or build from File → Build Settings.
 - [ ] **Version:** raise *Version* and *Bundle Version Code* in Player Settings for every upload. Setup Project starts them at 0.1.0 and 1.
@@ -263,7 +290,7 @@ A speaker button in the lobby, and next to Retreat at the table, turns sound on 
 
 ---
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
@@ -277,7 +304,7 @@ A speaker button in the lobby, and next to Retreat at the table, turns sound on 
 
 ---
 
-## 13. Unity 2022.1 on newer Linux
+## 14. Unity 2022.1 on newer Linux
 
 Windows and macOS need none of this. Unity 2022.1 is older than Ubuntu 23.10 and later (such as 24.04), so it needs four fixes there. The dev server already has them.
 

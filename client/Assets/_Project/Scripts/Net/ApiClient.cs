@@ -64,6 +64,11 @@ namespace WarPoker.Net
             Send("GET", "/rooms", null, false, done);
         }
 
+        public void Chat(Action<ApiResult<ChatCatalogDto>> done)
+        {
+            Send("GET", "/chat", null, false, done);
+        }
+
         void Send<T>(string method, string path, object body, bool auth, Action<ApiResult<T>> done)
         {
             _host.StartCoroutine(SendRoutine(method, path, body, auth, done));

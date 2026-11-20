@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using WarPoker.Cards;
+using WarPoker.Chat;
 using WarPoker.Core;
 using WarPoker.FX;
 using WarPoker.Main;
@@ -182,6 +183,57 @@ namespace WarPoker.Game
             _actions.OnAction = SendAction;
 
             _fx = FxLayer.Create(_board, this);
+
+            // Quick chat: bubbles over the camps, and the chat button (bottom-left) with its picker.
+            _chatLayer = UIKit.Stretch(UIKit.Rect("ChatBubbles", _board));
+            _chatPicker = ChatPicker.Create(_board, App.Chat, ChatButtonPos, ChatPanelCorner);
+            _chatPicker.OnSend = SendChat;
+        }
+
+        static readonly Vector2 ChatButtonPos = new Vector2(-850, -462);
+        static readonly Vector2 ChatPanelCorner = new Vector2(-922, -405);
+        static readonly Vector2 BoardHalf = new Vector2(960, 540);
+        RectTransform _chatLayer;
+        ChatPicker _chatPicker;
+        readonly Dictionary<int, ChatBubble> _bubbles = new Dictionary<int, ChatBubble>();
+
+        void SendChat(ChatItemDto item)
+        {
+            // Start the wait at once so a double tap doesn't send twice; the server checks it too.
+            _chatPicker.StartCooldown(App.Chat.CooldownMs / 1000f);
+            App.Socket.Request("table:chat", new JObject { ["id"] = item.id }, ack =>
+            {
+                if (ack.Value<bool>("ok")) return;
+                string error = ack.Value<string>("error");
+                if (error == "COOLDOWN") return;
+                _chatPicker.StartCooldown(0f);
+                if (error == "UNKNOWN_ITEM") App.Chat.Refresh(); // the admin just removed it
+                App.Toast(Strings.ErrorText(error));
+            });
+        }
+
+        /// <summary>Someone at the table (maybe me) sent an emoji or message: show it over their camp.</summary>
+        public void OnChat(ChatMsg m)
+        {
+            if (_state == null || m == null) return;
+            var view = ViewFor(m.seat);
+            if (view == null || !view.Occupied) return;
+            if (m.seat != _state.yourSeat && ChatPicker.HideOthers) return;
+            var item = App.Chat.Find(m.id);
+            if (item == null) { App.Chat.Refresh(); return; } // our list is older than the server's
+            var frames = App.Chat.Frames(item);
+            if (item.IsEmoji && frames == null) return;     // picture not downloaded yet
+            ChatBubble old;
+            if (_bubbles.TryGetValue(m.seat, out old) && old != null) Destroy(old.gameObject);
+            _bubbles[m.seat] = ChatBubble.Show(_chatLayer, item, frames, _fx.ToLocal(view.Rect), BoardHalf);
+            Sfx.Play("chat");
+        }
+
+        void ClearChat()
+        {
+            if (_chatLayer != null) foreach (Transform t in _chatLayer) Destroy(t.gameObject);
+            _bubbles.Clear();
+            if (_chatPicker != null) _chatPicker.Close();
         }
 
         /// <summary>Bet spot: just outside the camp, on the line toward the pot.</summary>
@@ -348,6 +400,7 @@ namespace WarPoker.Game
             _dialogTitle.text = broke ? Strings.DefeatedTitle : Strings.RemovedTitle;
             _dialogText.text = broke ? Strings.BrokeDetail : Strings.RemovedReason(_removedReason);
             _dialog.SetActive(true);
+            _chatPicker.SetVisible(false);
             _dialog.transform.SetAsLastSibling();
             var panel = _dialog.transform.GetChild(0);
             panel.localScale = Vector3.one * 0.6f;
@@ -392,6 +445,7 @@ namespace WarPoker.Game
         public override void OnHide()
         {
             Screen.sleepTimeout = SleepTimeout.SystemSetting;
+            ClearChat();
             CancelAnimations();
             _queue.Clear();
             _state = null;
@@ -544,6 +598,7 @@ namespace WarPoker.Game
         {
             if (s == null) return;
             _state = s;
+            _chatPicker.SetVisible(s.yourSeat >= 0 && !_dialog.activeSelf);
             if (s.bigBlind > 0) TroopStackView.Unit = s.bigBlind;
             int max = Mathf.Clamp(s.maxSeats, 1, MaxSeats);
             _centerMsg.text = "";

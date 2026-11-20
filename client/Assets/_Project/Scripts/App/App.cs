@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using WarPoker.Auth;
+using WarPoker.Chat;
 using WarPoker.Core;
 using WarPoker.Game;
 using WarPoker.Lobby;
@@ -23,6 +24,8 @@ namespace WarPoker.Main
         public Session Session { get; private set; }
         public ApiClient Api { get; private set; }
         public SocketClient Socket { get; private set; }
+        /// <summary>The quick-chat emojis and messages, as the server lists them.</summary>
+        public ChatCatalog Chat { get; private set; }
 
         public LoginScreen LoginScreen { get; private set; }
         public LobbyScreen LobbyScreen { get; private set; }
@@ -69,6 +72,7 @@ namespace WarPoker.Main
             Socket.Disconnected += OnSocketDisconnected;
             Socket.ConnectError += OnSocketError;
             Socket.EventReceived += OnSocketEvent;
+            Chat = new ChatCatalog(this, Api, () => ServerConfig.Url);
 
             BuildUI();
         }
@@ -282,6 +286,7 @@ namespace WarPoker.Main
 
         void OnSocketConnected()
         {
+            Chat.Refresh(); // cheap: the pictures stay cached on the device
             if (Current == GameScreen)
             {
                 // The server sends table:state on connect anyway; ask again to be safe.
@@ -359,6 +364,21 @@ namespace WarPoker.Main
                         WarPoker.FX.Sfx.Play("notify");
                         if (Current == LobbyScreen) LobbyScreen.OnInvite(inv);
                         else if (Current == GameScreen) Toast(Strings.Format("InviteArrivedAtTable", inv.from, inv.code), 4f);
+                        break;
+                    }
+
+                    case "table:chat":
+                    {
+                        if (Current != GameScreen || payload == null) break;
+                        var m = payload.ToObject<ChatMsg>();
+                        if (m != null) GameScreen.OnChat(m);
+                        break;
+                    }
+
+                    case "chat:updated":
+                    {
+                        var u = payload != null ? payload.ToObject<ChatUpdatedMsg>() : null;
+                        if (u != null) Chat.OnUpdated(u.version);
                         break;
                     }
 

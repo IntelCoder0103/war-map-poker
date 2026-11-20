@@ -15,3 +15,6 @@ Thumbs.db
 
 # The demo APK is kept in the repo on purpose
 !demo/*.apk
+
+# Python
+__pycache__/

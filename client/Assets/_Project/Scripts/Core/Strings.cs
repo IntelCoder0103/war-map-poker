@@ -76,6 +76,11 @@ namespace WarPoker.Core
             { "InviteFriendHint", "Enter their commander name. They must be online." },
             { "Send", "Send" },
             { "InviteSent", "Invitation sent to {0}" },
+            { "ChatEmojis", "Emojis" },
+            { "ChatMessages", "Messages" },
+            { "ChatHideOthers", "Hide others' messages" },
+            { "ChatLoading", "Loading..." },
+            { "ChatEmpty", "Nothing to send yet" },
 
             // Table
             { "Leave", "Retreat" },
@@ -179,6 +184,8 @@ namespace WarPoker.Core
             { "Error.BAD_STAKES", "Those stakes are not allowed. Check the buy-in and the big blind." },
             { "Error.ROOM_NOT_FOUND", "No room with that code. It may have closed." },
             { "Error.TABLE_FULL", "That room is full." },
+            { "Error.UNKNOWN_ITEM", "That one was just removed. Pick another." },
+            { "Error.COOLDOWN", "Wait a moment before sending another." },
             { "Error.NOT_PRIVATE", "You can only invite to a private room." },
             { "Error.USER_NOT_FOUND", "No commander with that name." },
             { "Error.USER_OFFLINE", "That commander is not online." },

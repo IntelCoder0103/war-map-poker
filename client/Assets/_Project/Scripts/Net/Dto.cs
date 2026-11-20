@@ -62,6 +62,38 @@ namespace WarPoker.Net
         public int maxSeats = 8;
     }
 
+    /// <summary>GET /chat: the emojis and messages players can send at the table.</summary>
+    public class ChatCatalogDto
+    {
+        public int version;
+        public int cooldownMs = 3000;
+        public List<ChatItemDto> items;
+    }
+
+    public class ChatItemDto
+    {
+        public string id;
+        public string kind;   // "emoji" or "text"
+        public string text;   // the message (kind "text")
+        public string label;  // the emoji's name
+        public string image;  // server path of the picture (emoji only)
+        public int frames = 1; // > 1: the picture is a strip of square frames
+        public int fps;
+        public bool IsEmoji { get { return kind == "emoji"; } }
+    }
+
+    /// <summary>table:chat: someone at the table sent an emoji or message.</summary>
+    public class ChatMsg
+    {
+        public int seat;
+        public string id;
+    }
+
+    public class ChatUpdatedMsg
+    {
+        public int version;
+    }
+
     public class ErrorResponse
     {
         public string error;

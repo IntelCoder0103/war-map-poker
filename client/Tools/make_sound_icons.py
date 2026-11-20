@@ -1,9 +1,21 @@
-# Draws the sound on/off round icons in the style of the other round icons.
+# Draws round icons in the style of the kit's round icons: sound on/off and chat.
+#   python3 client/Tools/make_sound_icons.py client/Assets/_Project/Resources/UI
 import sys, os
 from PIL import Image, ImageDraw
 ui = sys.argv[1]
 K = 4
+def chat_glyph(size):
+    # a speech bubble with three dots cut out of it
+    g = Image.new('L', (size * K, size * K), 0); d = ImageDraw.Draw(g)
+    s = K
+    cx, cy = 64 * s, 62 * s
+    d.rounded_rectangle([cx - 32 * s, cy - 24 * s, cx + 32 * s, cy + 20 * s], 14 * s, fill=255)
+    d.polygon([(cx - 16 * s, cy + 14 * s), (cx - 2 * s, cy + 14 * s), (cx - 22 * s, cy + 33 * s)], fill=255)
+    for dx in (-15, 0, 15):
+        d.ellipse([cx + (dx - 5) * s, cy - 7 * s, cx + (dx + 5) * s, cy + 3 * s], fill=0)
+    return g
 def glyph(mute, size):
+    if mute == 'chat': return chat_glyph(size)
     g = Image.new('L', (size * K, size * K), 0); d = ImageDraw.Draw(g)
     s = K
     cx, cy = 64 * s, 66 * s
@@ -37,3 +49,5 @@ def make(base, mute, top, side, shade, out):
 for mute, name in [(False, 'icon_sound'), (True, 'icon_mute')]:
     make('round_wood.png', mute, (255, 255, 255), (232, 232, 236), (165, 165, 172), name + '.png')
     make('round_gold.png', mute, (255, 238, 30), (255, 214, 20), (226, 128, 10), name + '_pressed.png')
+make('round_wood.png', 'chat', (255, 255, 255), (232, 232, 236), (165, 165, 172), 'icon_chat.png')
+make('round_gold.png', 'chat', (255, 238, 30), (255, 214, 20), (226, 128, 10), 'icon_chat_pressed.png')

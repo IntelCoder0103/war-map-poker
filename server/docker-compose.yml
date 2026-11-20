@@ -19,6 +19,7 @@ services:
     environment:
       MONGO_URL: mongodb://mongo:27017/warpoker
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}  # set it to switch on http://localhost:3000/admin
     ports: ["${SERVER_PORT:-3000}:3000"]
     volumes: ["./config.json:/app/config.json:ro"]  # edit config.json, then: docker compose restart server
     depends_on: [mongo]

@@ -32,6 +32,9 @@ const defaults = {
   // Once 2+ players pressed Ready, how long the others have before they go back to the lobby.
   readyTimeoutMs: 30000,
 
+  // The admin page (/admin) is off unless ADMIN_PASSWORD is set (environment only: it's a secret).
+  adminPassword: '',
+
   // Private rooms with custom stakes: limits on what a creator may choose.
   privateRooms: { minBuyIn: 100, maxBuyIn: 1000000, minStackBigBlinds: 10, codeLength: 6 },
 
@@ -80,6 +83,7 @@ function fromEnv() {
     disconnectGraceMs: num('DISCONNECT_GRACE_MS'),
     idleTimeouts: num('IDLE_TIMEOUTS'),
     readyTimeoutMs: num('READY_TIMEOUT_MS'),
+    adminPassword: env.ADMIN_PASSWORD || undefined,
   };
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
   return out;
